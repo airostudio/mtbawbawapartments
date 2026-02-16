@@ -22,7 +22,11 @@ model Property {
   images            String[] // Array of image URLs
   basePrice         Float    // Nightly base price
 
-  // Operator details
+  // Operator relationship
+  operatorId        String?
+  operator          Operator? @relation(fields: [operatorId], references: [id])
+
+  // Legacy operator details (for backward compatibility)
   operatorName      String
   operatorContact   String
   operatorEmail     String?
@@ -45,6 +49,7 @@ model Property {
 
   @@index([slug])
   @@index([active])
+  @@index([operatorId])
 }
 
 model Booking {
@@ -77,6 +82,11 @@ model Booking {
   stripeSessionId      String?
   paymentStatus        String   @default("pending") // pending, succeeded, failed, refunded
 
+  // Stripe Connect (Phase 2)
+  stripeTransferId     String?  @unique // Transfer to operator's connected account
+  stripeTransferStatus String?  // pending, succeeded, failed
+  platformFeeAmount    Float?   // Platform fee kept from transfer
+
   // Booking status
   status               String   @default("pending") // pending, confirmed, cancelled
   operatorConfirmation String?  // Operator's booking reference
@@ -97,6 +107,7 @@ model Booking {
   @@index([paymentStatus])
   @@index([checkIn])
   @@index([guestEmail])
+  @@index([stripeTransferStatus])
 }
 
 model AvailabilityCache {
@@ -134,4 +145,70 @@ model SystemConfig {
   updatedAt  DateTime @updatedAt
 
   @@index([key])
+}
+
+model Operator {
+  id                      String    @id @default(cuid())
+  name                    String
+  email                   String    @unique
+  phone                   String?
+  businessName            String?
+
+  // Stripe Connect
+  stripeAccountId         String?   @unique  // Stripe Connect account ID
+  stripeAccountStatus     String    @default("not_created") // not_created, pending, active, restricted
+  stripeOnboardingComplete Boolean  @default(false)
+  stripeDetailsSubmitted  Boolean   @default(false)
+  stripeChargesEnabled    Boolean   @default(false)
+  stripePayoutsEnabled    Boolean   @default(false)
+
+  // Payout preferences
+  payoutMode              String    @default("manual") // manual, auto_connect
+  payoutSchedule          String?   // daily, weekly, monthly
+  minimumPayout           Float?    // Minimum amount before payout
+
+  // Contact preferences
+  bookingUrl              String?
+  preferredContact        String?   // email, phone, portal
+
+  active                  Boolean   @default(true)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  properties              Property[]
+  payouts                 Payout[]
+
+  @@index([email])
+  @@index([stripeAccountId])
+  @@index([stripeAccountStatus])
+}
+
+model Payout {
+  id                String    @id @default(cuid())
+
+  operatorId        String
+  operator          Operator  @relation(fields: [operatorId], references: [id])
+
+  amount            Float     // Total payout amount
+  currency          String    @default("aud")
+
+  // Stripe details
+  stripeTransferId  String?   @unique
+  stripePayoutId    String?   // If using Stripe Connect payouts
+  status            String    @default("pending") // pending, processing, succeeded, failed, cancelled
+
+  // Metadata
+  bookingIds        String[]  // Array of booking IDs included in this payout
+  periodStart       DateTime
+  periodEnd         DateTime
+
+  failureReason     String?
+  paidAt            DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([operatorId])
+  @@index([status])
+  @@index([paidAt])
+  @@index([createdAt])
 }

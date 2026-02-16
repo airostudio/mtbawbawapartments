@@ -9,8 +9,10 @@ This platform serves as a booking aggregator that:
 - Allows guests to search by dates and guest count
 - Shows real-time availability across multiple operators
 - Takes payment via Stripe with a 15-25% markup
+- **Phase 2:** Automated operator payouts via Stripe Connect
+- **Phase 2:** Operator management and onboarding dashboard
 - Automatically alerts you of new bookings for manual operator booking
-- Provides admin dashboard for booking management
+- Provides admin dashboard for booking and operator management
 
 ## 🏗️ Architecture
 
@@ -18,7 +20,7 @@ This platform serves as a booking aggregator that:
 
 - **Frontend & Backend**: Next.js 15 with TypeScript
 - **Database**: PostgreSQL with Prisma ORM
-- **Payments**: Stripe Checkout & Webhooks
+- **Payments**: Stripe Checkout, Webhooks & Connect (Phase 2)
 - **Styling**: Tailwind CSS
 - **Email**: Nodemailer (SMTP)
 - **Notifications**: Slack Webhooks (optional)
@@ -32,8 +34,11 @@ mtbawbawapartments/
 │   ├── property/[slug]/          # Property detail pages
 │   ├── booking/                  # Booking success/cancelled pages
 │   ├── admin/                    # Admin dashboard
+│   │   ├── bookings/             # Booking management
+│   │   └── operators/            # Operator management (Phase 2)
 │   └── api/                      # API routes
 │       ├── checkout/             # Stripe checkout session creation
+│       ├── operators/            # Operator CRUD (Phase 2)
 │       └── webhooks/stripe/      # Stripe webhook handler
 ├── components/                   # React components
 │   ├── PropertyGrid/             # Property listing components
@@ -43,6 +48,8 @@ mtbawbawapartments/
 ├── lib/                          # Backend logic
 │   ├── db/                       # Prisma client
 │   ├── stripe/                   # Stripe integration
+│   │   ├── index.ts              # Standard checkout
+│   │   └── connect.ts            # Stripe Connect (Phase 2)
 │   ├── connectors/               # Availability connectors
 │   │   ├── base.ts               # Base connector interface
 │   │   ├── manual.ts             # Manual availability management
