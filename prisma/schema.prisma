@@ -1,0 +1,137 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Property {
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  description       String
+  sleeps            Int
+  bedrooms          Int
+  bathrooms         Int
+  features          String[] // ["Wi-Fi", "Parking", "Kitchen", etc.]
+  images            String[] // Array of image URLs
+  basePrice         Float    // Nightly base price
+
+  // Operator details
+  operatorName      String
+  operatorContact   String
+  operatorEmail     String?
+  operatorBookingUrl String?
+
+  // Integration details
+  connectorType     String   // "sirvoy", "ical", "manual", "scrape"
+  connectorConfig   Json?    // Connector-specific config (API keys, iCal URLs, etc.)
+
+  // Pricing rules
+  markupPercent     Float    @default(20.0) // Default 20% markup
+  seasonalMarkup    Json?    // {"peak": 25, "shoulder": 15, "off": 15}
+
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  bookings          Booking[]
+  availabilityCache AvailabilityCache[]
+
+  @@index([slug])
+  @@index([active])
+}
+
+model Booking {
+  id                   String   @id @default(cuid())
+
+  // Property and dates
+  propertyId           String
+  property             Property @relation(fields: [propertyId], references: [id])
+  checkIn              DateTime
+  checkOut             DateTime
+  nights               Int
+
+  // Guest details
+  guestName            String
+  guestEmail           String
+  guestPhone           String
+  numberOfGuests       Int
+
+  // Pricing
+  basePricePerNight    Float
+  markupPercent        Float
+  totalBasePrice       Float
+  totalMarkup          Float
+  totalPrice           Float    // What customer pays
+  stripeFee            Float    @default(0)
+  netProfit            Float    // Markup minus fees
+
+  // Payment
+  stripePaymentIntent  String?  @unique
+  stripeSessionId      String?
+  paymentStatus        String   @default("pending") // pending, succeeded, failed, refunded
+
+  // Booking status
+  status               String   @default("pending") // pending, confirmed, cancelled
+  operatorConfirmation String?  // Operator's booking reference
+
+  // Operator payout
+  operatorPaid         Boolean  @default(false)
+  operatorPaidAt       DateTime?
+  operatorPaidAmount   Float?
+
+  // Metadata
+  alertsSent           Boolean  @default(false)
+  notes                String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([propertyId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([checkIn])
+  @@index([guestEmail])
+}
+
+model AvailabilityCache {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+  date       DateTime @db.Date
+  available  Boolean
+  price      Float?
+  lastFetch  DateTime @default(now())
+
+  @@unique([propertyId, date])
+  @@index([propertyId, date])
+  @@index([lastFetch])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      String   @default("admin") // admin, operator
+  password  String   // Hashed
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+model SystemConfig {
+  id         String   @id @default(cuid())
+  key        String   @unique
+  value      Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([key])
+}
