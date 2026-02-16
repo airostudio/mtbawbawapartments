@@ -2,6 +2,8 @@ import PropertyGrid from '@/components/PropertyGrid';
 import SearchForm from '@/components/DatePicker/SearchForm';
 import prisma from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 interface HomePageProps {
   searchParams: Promise<{
     checkIn?: string;

@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import prisma from '@/lib/db';
 import { getCheckoutSession } from '@/lib/stripe';
 
+export const dynamic = 'force-dynamic';
+
 interface SuccessPageProps {
   searchParams: Promise<{
     session_id?: string;

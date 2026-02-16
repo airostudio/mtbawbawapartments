@@ -5,10 +5,26 @@
 import Stripe from 'stripe';
 import { env } from '@/lib/utils/env';
 
-// Initialize Stripe client
-export const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: '2024-12-18.acacia',
-  typescript: true,
+// Lazy-initialized Stripe client (to avoid build-time errors)
+let _stripe: Stripe | null = null;
+
+function getStripeClient(): Stripe {
+  if (!_stripe) {
+    _stripe = new Stripe(env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
+      apiVersion: '2025-08-27.basil',
+      typescript: true,
+    });
+  }
+  return _stripe;
+}
+
+// Export stripe client
+export const stripe = new Proxy({} as Stripe, {
+  get: (target, prop) => {
+    const client = getStripeClient();
+    const value = (client as any)[prop];
+    return typeof value === 'function' ? value.bind(client) : value;
+  }
 });
 
 /**

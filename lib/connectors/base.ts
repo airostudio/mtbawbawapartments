@@ -68,12 +68,17 @@ export abstract class BaseConnector {
 }
 
 /**
+ * Type for connector class constructors
+ */
+type ConnectorConstructor = new (config: PropertyConfig) => BaseConnector;
+
+/**
  * Factory to create the appropriate connector based on type
  */
 export class ConnectorFactory {
-  private static connectors: Map<string, typeof BaseConnector> = new Map();
+  private static connectors: Map<string, ConnectorConstructor> = new Map();
 
-  static register(type: string, connectorClass: typeof BaseConnector) {
+  static register(type: string, connectorClass: ConnectorConstructor) {
     this.connectors.set(type, connectorClass);
   }
 

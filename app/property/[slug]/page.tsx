@@ -3,6 +3,8 @@ import Image from 'next/image';
 import prisma from '@/lib/db';
 import BookingForm from '@/components/BookingForm';
 
+export const dynamic = 'force-dynamic';
+
 interface PropertyPageProps {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{

@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import prisma from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdminDashboard() {
   // Get stats
   const [totalBookings, pendingBookings, totalProperties, recentBookings] = await Promise.all([
