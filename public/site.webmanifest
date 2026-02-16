@@ -1,0 +1,15 @@
+{
+  "name": "Mt Baw Baw Apartments",
+  "short_name": "Mt Baw Baw",
+  "description": "Premium apartment rentals at Mt Baw Baw",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "theme_color": "#3B82F6",
+  "background_color": "#ffffff",
+  "display": "standalone"
+}

@@ -5,6 +5,15 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Mt Baw Baw Apartments - Book Your Mountain Getaway",
   description: "Premium apartment rentals at Mt Baw Baw. Find and book the perfect accommodation for your ski trip or mountain escape.",
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+    ],
+    apple: [
+      { url: '/favicon.svg' },
+    ],
+  },
+  manifest: '/site.webmanifest',
 };
 
 export default function RootLayout({

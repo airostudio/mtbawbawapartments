@@ -101,7 +101,7 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <Link
           href="/admin/bookings"
           className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
@@ -111,6 +111,23 @@ export default async function AdminDashboard() {
               <h3 className="text-lg font-semibold text-gray-900 mb-1">Manage Bookings</h3>
               <p className="text-sm text-gray-600">
                 View and manage all customer bookings
+              </p>
+            </div>
+            <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/operators"
+          className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Manage Operators</h3>
+              <p className="text-sm text-gray-600">
+                Manage operators and Stripe Connect
               </p>
             </div>
             <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
