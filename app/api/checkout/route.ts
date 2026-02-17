@@ -77,12 +77,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate pricing
+    // Calculate pricing — markupPercent already has seasonal adjustment applied
     const basePricePerNight = availability.price || property.basePrice;
     const totalBasePrice = basePricePerNight * nights;
-    const markupPercent = property.markupPercent;
-    const totalMarkup = totalBasePrice * (markupPercent / 100);
-    const totalPrice = totalBasePrice + totalMarkup;
+    const pricePerNightWithMarkup = availability.priceWithMarkup || basePricePerNight;
+    const totalPrice = pricePerNightWithMarkup * nights;
+    const totalMarkup = totalPrice - totalBasePrice;
+    const markupPercent = totalBasePrice > 0 ? (totalMarkup / totalBasePrice) * 100 : property.markupPercent;
     const stripeFee = calculateStripeFee(totalPrice);
     const netProfit = totalMarkup - stripeFee;
 

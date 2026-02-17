@@ -6,6 +6,95 @@ import { ConnectorFactory, DateRange, AvailabilityResult } from '@/lib/connector
 import prisma from '@/lib/db';
 import { env } from '@/lib/utils/env';
 
+/**
+ * A single seasonal pricing rule stored in property.seasonalMarkup JSON.
+ *
+ * Uses month/day (1-indexed) so rules repeat every year automatically.
+ * Wrap-around seasons (e.g. Christmas Dec 20 → Jan 10) are supported:
+ * just set startMonth > endMonth and the service handles the rollover.
+ *
+ * Example seasonalMarkup JSON:
+ * {
+ *   "seasons": [
+ *     { "name": "Ski Season",    "markup": 35, "startMonth": 6,  "startDay": 1,  "endMonth": 8,  "endDay": 31 },
+ *     { "name": "Christmas/NYE", "markup": 40, "startMonth": 12, "startDay": 20, "endMonth": 1,  "endDay": 10 },
+ *     { "name": "Easter",        "markup": 25, "startMonth": 4,  "startDay": 1,  "endMonth": 4,  "endDay": 22 }
+ *   ]
+ * }
+ */
+interface SeasonRule {
+  name: string;
+  markup: number; // Percentage, e.g. 35 means 35%
+  startMonth: number; // 1-12
+  startDay: number;   // 1-31
+  endMonth: number;   // 1-12
+  endDay: number;     // 1-31
+}
+
+interface SeasonalMarkupConfig {
+  seasons: SeasonRule[];
+}
+
+/**
+ * Determine the highest seasonal markup that applies to any night in the stay.
+ * Returns the property's base markupPercent if no season matches.
+ */
+function resolveSeasonalMarkup(
+  checkIn: Date,
+  checkOut: Date,
+  baseMarkupPercent: number,
+  seasonalMarkup: unknown
+): number {
+  if (!seasonalMarkup || typeof seasonalMarkup !== 'object') {
+    return baseMarkupPercent;
+  }
+
+  const config = seasonalMarkup as SeasonalMarkupConfig;
+  if (!Array.isArray(config.seasons) || config.seasons.length === 0) {
+    return baseMarkupPercent;
+  }
+
+  let highestMarkup = baseMarkupPercent;
+
+  // Check each night of the stay against all season rules
+  const cursor = new Date(checkIn);
+  while (cursor < checkOut) {
+    const month = cursor.getUTCMonth() + 1; // 1-12
+    const day = cursor.getUTCDate();
+
+    for (const season of config.seasons) {
+      if (isDateInSeason(month, day, season)) {
+        if (season.markup > highestMarkup) {
+          highestMarkup = season.markup;
+        }
+      }
+    }
+
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return highestMarkup;
+}
+
+/**
+ * Check whether a given month/day falls within a season rule.
+ * Handles wrap-around seasons (e.g. Dec 20 → Jan 10).
+ */
+function isDateInSeason(month: number, day: number, season: SeasonRule): boolean {
+  // Encode as a comparable MMDD integer
+  const dateMD = month * 100 + day;
+  const startMD = season.startMonth * 100 + season.startDay;
+  const endMD = season.endMonth * 100 + season.endDay;
+
+  if (startMD <= endMD) {
+    // Normal season: e.g. Jun 1 → Aug 31 (startMD=601, endMD=831)
+    return dateMD >= startMD && dateMD <= endMD;
+  } else {
+    // Wrap-around season: e.g. Dec 20 → Jan 10 (startMD=1220, endMD=110)
+    return dateMD >= startMD || dateMD <= endMD;
+  }
+}
+
 export class AvailabilityService {
   /**
    * Check availability for a property
@@ -42,13 +131,21 @@ export class AvailabilityService {
 
     const result = await connector.checkAvailability(dateRange);
 
-    // If available, calculate markup price
-    if (result.available && result.price) {
-      const markupPercent = property.markupPercent || env.DEFAULT_MARKUP_PERCENT;
-      const priceWithMarkup = result.price * (1 + markupPercent / 100);
+    // If available, calculate markup price with seasonal adjustment
+    if (result.available) {
+      const baseMarkup = property.markupPercent || env.DEFAULT_MARKUP_PERCENT;
+      const markupPercent = resolveSeasonalMarkup(
+        dateRange.checkIn,
+        dateRange.checkOut,
+        baseMarkup,
+        property.seasonalMarkup
+      );
+      const price = result.price || property.basePrice;
+      const priceWithMarkup = price * (1 + markupPercent / 100);
 
       return {
         ...result,
+        price,
         priceWithMarkup,
       };
     }
