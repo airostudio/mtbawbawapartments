@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import prisma from '@/lib/db';
+import { queryOne } from '@/lib/db';
+import type { Booking, Property } from '@/lib/db/types';
 import { getCheckoutSession } from '@/lib/stripe';
 
 export const dynamic = 'force-dynamic';
@@ -24,10 +25,15 @@ export default async function BookingSuccessPage({ searchParams }: SuccessPagePr
     const session = await getCheckoutSession(sessionId);
 
     // Get booking from database
-    const booking = await prisma.booking.findFirst({
-      where: { stripeSessionId: sessionId },
-      include: { property: true },
-    });
+    const row = await queryOne<Booking & { property: Property }>(
+      `SELECT b.*, row_to_json(p) AS property
+       FROM "Booking" b
+       JOIN "Property" p ON b."propertyId" = p."id"
+       WHERE b."stripeSessionId" = $1
+       LIMIT 1`,
+      [sessionId],
+    );
+    const booking = row;
 
     if (!booking) {
       notFound();

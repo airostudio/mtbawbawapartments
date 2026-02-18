@@ -4,7 +4,8 @@
 
 import Stripe from 'stripe';
 import { env } from '@/lib/utils/env';
-import prisma from '@/lib/db';
+import { query, queryOne, generateId } from '@/lib/db';
+import type { Operator, Payout } from '@/lib/db/types';
 
 // Lazy-initialized Stripe client
 let _stripe: Stripe | null = null;
@@ -46,16 +47,14 @@ export async function createConnectedAccount(params: {
   });
 
   // Update operator record
-  await prisma.operator.update({
-    where: { id: params.operatorId },
-    data: {
-      stripeAccountId: account.id,
-      stripeAccountStatus: 'pending',
-      stripeDetailsSubmitted: account.details_submitted || false,
-      stripeChargesEnabled: account.charges_enabled || false,
-      stripePayoutsEnabled: account.payouts_enabled || false,
-    },
-  });
+  await query(
+    `UPDATE "Operator" SET
+      "stripeAccountId" = $1, "stripeAccountStatus" = 'pending',
+      "stripeDetailsSubmitted" = $2, "stripeChargesEnabled" = $3,
+      "stripePayoutsEnabled" = $4, "updatedAt" = NOW()
+     WHERE "id" = $5`,
+    [account.id, account.details_submitted || false, account.charges_enabled || false, account.payouts_enabled || false, params.operatorId],
+  );
 
   return account;
 }
@@ -89,25 +88,31 @@ export async function syncConnectedAccount(accountId: string) {
   const account = await stripe.accounts.retrieve(accountId);
 
   // Find operator by Stripe account ID
-  const operator = await prisma.operator.findUnique({
-    where: { stripeAccountId: accountId },
-  });
+  const operator = await queryOne<Operator>(
+    `SELECT * FROM "Operator" WHERE "stripeAccountId" = $1`,
+    [accountId],
+  );
 
   if (!operator) {
     throw new Error('Operator not found for Stripe account');
   }
 
   // Update operator with latest Stripe status
-  await prisma.operator.update({
-    where: { id: operator.id },
-    data: {
-      stripeAccountStatus: account.charges_enabled ? 'active' : 'pending',
-      stripeDetailsSubmitted: account.details_submitted || false,
-      stripeChargesEnabled: account.charges_enabled || false,
-      stripePayoutsEnabled: account.payouts_enabled || false,
-      stripeOnboardingComplete: account.details_submitted && account.charges_enabled || false,
-    },
-  });
+  await query(
+    `UPDATE "Operator" SET
+      "stripeAccountStatus" = $1, "stripeDetailsSubmitted" = $2,
+      "stripeChargesEnabled" = $3, "stripePayoutsEnabled" = $4,
+      "stripeOnboardingComplete" = $5, "updatedAt" = NOW()
+     WHERE "id" = $6`,
+    [
+      account.charges_enabled ? 'active' : 'pending',
+      account.details_submitted || false,
+      account.charges_enabled || false,
+      account.payouts_enabled || false,
+      (account.details_submitted && account.charges_enabled) || false,
+      operator.id,
+    ],
+  );
 
   return account;
 }
@@ -209,9 +214,10 @@ export async function createBatchPayout(params: {
   bookingIds: string[];
   amount: number;
 }) {
-  const operator = await prisma.operator.findUnique({
-    where: { id: params.operatorId },
-  });
+  const operator = await queryOne<Operator>(
+    `SELECT * FROM "Operator" WHERE "id" = $1`,
+    [params.operatorId],
+  );
 
   if (!operator) {
     throw new Error('Operator not found');
@@ -222,16 +228,12 @@ export async function createBatchPayout(params: {
   }
 
   // Create payout record
-  const payout = await prisma.payout.create({
-    data: {
-      operatorId: params.operatorId,
-      amount: params.amount,
-      bookingIds: params.bookingIds,
-      periodStart: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
-      periodEnd: new Date(),
-      status: 'pending',
-    },
-  });
+  const payout = await queryOne<Payout>(
+    `INSERT INTO "Payout" ("id", "operatorId", "amount", "bookingIds", "periodStart", "periodEnd", "status", "createdAt", "updatedAt")
+     VALUES ($1, $2, $3, $4, $5, $6, 'pending', NOW(), NOW())
+     RETURNING *`,
+    [generateId(), params.operatorId, params.amount, params.bookingIds, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), new Date()],
+  );
 
   // If using auto Connect mode, create the transfer
   if (operator.payoutMode === 'auto_connect') {
@@ -247,34 +249,25 @@ export async function createBatchPayout(params: {
       });
 
       // Update payout record with transfer details
-      await prisma.payout.update({
-        where: { id: payout.id },
-        data: {
-          stripeTransferId: transfer.id,
-          status: 'processing',
-        },
-      });
+      await query(
+        `UPDATE "Payout" SET "stripeTransferId" = $1, "status" = 'processing', "updatedAt" = NOW() WHERE "id" = $2`,
+        [transfer.id, payout!.id],
+      );
 
       // Update bookings
-      await prisma.booking.updateMany({
-        where: { id: { in: params.bookingIds } },
-        data: {
-          operatorPaid: true,
-          operatorPaidAt: new Date(),
-          operatorPaidAmount: params.amount / params.bookingIds.length, // Split evenly (simple approach)
-        },
-      });
+      await query(
+        `UPDATE "Booking" SET "operatorPaid" = true, "operatorPaidAt" = $1, "operatorPaidAmount" = $2, "updatedAt" = NOW()
+         WHERE "id" = ANY($3::text[])`,
+        [new Date(), params.amount / params.bookingIds.length, params.bookingIds],
+      );
 
       return { payout, transfer };
     } catch (error) {
       // Update payout status to failed
-      await prisma.payout.update({
-        where: { id: payout.id },
-        data: {
-          status: 'failed',
-          failureReason: error instanceof Error ? error.message : 'Unknown error',
-        },
-      });
+      await query(
+        `UPDATE "Payout" SET "status" = 'failed', "failureReason" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
+        [error instanceof Error ? error.message : 'Unknown error', payout!.id],
+      );
 
       throw error;
     }

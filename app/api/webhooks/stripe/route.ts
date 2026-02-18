@@ -6,7 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { stripe } from '@/lib/stripe';
-import prisma from '@/lib/db';
+import { query, queryOne } from '@/lib/db';
+import type { Booking, Property } from '@/lib/db/types';
 import { sendBookingAlert } from '@/lib/services/alerts';
 import { env } from '@/lib/utils/env';
 
@@ -72,26 +73,29 @@ async function handleCheckoutCompleted(session: any) {
     return;
   }
 
-  const booking = await prisma.booking.update({
-    where: { id: bookingId },
-    data: {
-      paymentStatus: 'succeeded',
-      stripePaymentIntent: session.payment_intent as string,
-    },
-    include: {
-      property: true,
-    },
-  });
+  await query(
+    `UPDATE "Booking" SET "paymentStatus" = 'succeeded', "stripePaymentIntent" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
+    [session.payment_intent as string, bookingId],
+  );
+
+  const booking = await queryOne<Booking & { property: Property }>(
+    `SELECT b.*, row_to_json(p) AS property
+     FROM "Booking" b JOIN "Property" p ON b."propertyId" = p."id"
+     WHERE b."id" = $1`,
+    [bookingId],
+  );
+
+  if (!booking) return;
 
   console.log(`Payment succeeded for booking ${bookingId}`);
 
   // Send booking alert
   if (!booking.alertsSent) {
     await sendBookingAlert(booking);
-    await prisma.booking.update({
-      where: { id: bookingId },
-      data: { alertsSent: true },
-    });
+    await query(
+      `UPDATE "Booking" SET "alertsSent" = true, "updatedAt" = NOW() WHERE "id" = $1`,
+      [bookingId],
+    );
   }
 }
 
@@ -102,13 +106,10 @@ async function handlePaymentSucceeded(paymentIntent: any) {
     return;
   }
 
-  await prisma.booking.update({
-    where: { id: bookingId },
-    data: {
-      paymentStatus: 'succeeded',
-      stripePaymentIntent: paymentIntent.id,
-    },
-  });
+  await query(
+    `UPDATE "Booking" SET "paymentStatus" = 'succeeded', "stripePaymentIntent" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
+    [paymentIntent.id, bookingId],
+  );
 
   console.log(`Payment intent succeeded for booking ${bookingId}`);
 }
@@ -120,12 +121,10 @@ async function handlePaymentFailed(paymentIntent: any) {
     return;
   }
 
-  await prisma.booking.update({
-    where: { id: bookingId },
-    data: {
-      paymentStatus: 'failed',
-    },
-  });
+  await query(
+    `UPDATE "Booking" SET "paymentStatus" = 'failed', "updatedAt" = NOW() WHERE "id" = $1`,
+    [bookingId],
+  );
 
   console.log(`Payment failed for booking ${bookingId}`);
 }

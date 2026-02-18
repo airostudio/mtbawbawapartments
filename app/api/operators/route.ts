@@ -4,7 +4,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import prisma from '@/lib/db';
+import { query, queryOne, generateId } from '@/lib/db';
+import type { Operator } from '@/lib/db/types';
 
 const createOperatorSchema = z.object({
   name: z.string().min(1),
@@ -20,26 +21,20 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const includeInactive = searchParams.get('includeInactive') === 'true';
 
-    const operators = await prisma.operator.findMany({
-      where: includeInactive ? {} : { active: true },
-      include: {
-        properties: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            active: true,
-          },
-        },
-        _count: {
-          select: {
-            properties: true,
-            payouts: true,
-          },
-        },
-      },
-      orderBy: { name: 'asc' },
-    });
+    const operators = await query<Operator & { properties: any[]; _count: { properties: number; payouts: number } }>(
+      `SELECT o.*,
+         COALESCE((
+           SELECT json_agg(json_build_object('id', p."id", 'name', p."name", 'slug', p."slug", 'active', p."active"))
+           FROM "Property" p WHERE p."operatorId" = o."id"
+         ), '[]'::json) AS properties,
+         json_build_object(
+           'properties', (SELECT COUNT(*)::int FROM "Property" WHERE "operatorId" = o."id"),
+           'payouts', (SELECT COUNT(*)::int FROM "Payout" WHERE "operatorId" = o."id")
+         ) AS "_count"
+       FROM "Operator" o
+       ${includeInactive ? '' : 'WHERE o."active" = true'}
+       ORDER BY o."name" ASC`,
+    );
 
     return NextResponse.json({ operators });
   } catch (error) {
@@ -57,9 +52,10 @@ export async function POST(request: NextRequest) {
     const data = createOperatorSchema.parse(body);
 
     // Check if operator with email already exists
-    const existing = await prisma.operator.findUnique({
-      where: { email: data.email },
-    });
+    const existing = await queryOne<Operator>(
+      `SELECT "id" FROM "Operator" WHERE "email" = $1`,
+      [data.email],
+    );
 
     if (existing) {
       return NextResponse.json(
@@ -68,16 +64,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const operator = await prisma.operator.create({
-      data: {
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        businessName: data.businessName,
-        bookingUrl: data.bookingUrl,
-        preferredContact: data.preferredContact || 'email',
-      },
-    });
+    const operator = await queryOne<Operator>(
+      `INSERT INTO "Operator" ("id", "name", "email", "phone", "businessName", "bookingUrl", "preferredContact", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+       RETURNING *`,
+      [generateId(), data.name, data.email, data.phone || null, data.businessName || null, data.bookingUrl || null, data.preferredContact || 'email'],
+    );
 
     return NextResponse.json({ operator }, { status: 201 });
   } catch (error) {

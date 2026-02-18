@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
-import prisma from '@/lib/db';
+import { queryOne } from '@/lib/db';
+import type { Property } from '@/lib/db/types';
 import BookingForm from '@/components/BookingForm';
 
 export const dynamic = 'force-dynamic';
@@ -18,9 +19,10 @@ export default async function PropertyPage({ params, searchParams }: PropertyPag
   const { slug } = await params;
   const search = await searchParams;
 
-  const property = await prisma.property.findUnique({
-    where: { slug, active: true },
-  });
+  const property = await queryOne<Property>(
+    `SELECT * FROM "Property" WHERE "slug" = $1 AND "active" = true`,
+    [slug],
+  );
 
   if (!property) {
     notFound();

@@ -3,7 +3,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import { queryOne } from '@/lib/db';
+import type { Operator } from '@/lib/db/types';
 import {
   createConnectedAccount,
   createOnboardingLink,
@@ -17,9 +18,10 @@ export async function POST(
   try {
     const { id } = await params;
 
-    const operator = await prisma.operator.findUnique({
-      where: { id },
-    });
+    const operator = await queryOne<Operator>(
+      `SELECT * FROM "Operator" WHERE "id" = $1`,
+      [id],
+    );
 
     if (!operator) {
       return NextResponse.json(
@@ -70,9 +72,10 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const operator = await prisma.operator.findUnique({
-      where: { id },
-    });
+    const operator = await queryOne<Operator>(
+      `SELECT * FROM "Operator" WHERE "id" = $1`,
+      [id],
+    );
 
     if (!operator || !operator.stripeAccountId) {
       return NextResponse.json(
@@ -85,9 +88,10 @@ export async function GET(
     const account = await syncConnectedAccount(operator.stripeAccountId);
 
     // Get updated operator
-    const updatedOperator = await prisma.operator.findUnique({
-      where: { id },
-    });
+    const updatedOperator = await queryOne<Operator>(
+      `SELECT * FROM "Operator" WHERE "id" = $1`,
+      [id],
+    );
 
     return NextResponse.json({
       operator: updatedOperator,

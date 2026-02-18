@@ -15,7 +15,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import { query, queryOne } from '@/lib/db';
+import type { Property, Booking } from '@/lib/db/types';
 
 /**
  * Format a Date as YYYYMMDD for all-day iCal events (no time zone ambiguity)
@@ -62,26 +63,23 @@ export async function GET(
   }
 
   // Fetch property
-  const property = await prisma.property.findUnique({
-    where: { slug: propertySlug },
-  });
+  const property = await queryOne<Property>(
+    `SELECT * FROM "Property" WHERE "slug" = $1`,
+    [propertySlug],
+  );
 
   if (!property || !property.active) {
     return new NextResponse('Property not found', { status: 404 });
   }
 
   // Fetch all confirmed or paid bookings (exclude cancelled/pending-unpaid)
-  const bookings = await prisma.booking.findMany({
-    where: {
-      propertyId: property.id,
-      OR: [
-        { status: 'confirmed' },
-        // Also include pending bookings with succeeded payment — these are real holds
-        { status: 'pending', paymentStatus: 'succeeded' },
-      ],
-    },
-    orderBy: { checkIn: 'asc' },
-  });
+  const bookings = await query<Booking>(
+    `SELECT * FROM "Booking"
+     WHERE "propertyId" = $1
+       AND ("status" = 'confirmed' OR ("status" = 'pending' AND "paymentStatus" = 'succeeded'))
+     ORDER BY "checkIn" ASC`,
+    [property.id],
+  );
 
   const now = new Date();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mtbawbawapartments.com.au';

@@ -3,7 +3,8 @@
  */
 
 import { ConnectorFactory, DateRange, AvailabilityResult } from '@/lib/connectors';
-import prisma from '@/lib/db';
+import { query, queryOne, generateId } from '@/lib/db';
+import type { Property, AvailabilityCacheRow } from '@/lib/db/types';
 import { env } from '@/lib/utils/env';
 
 /**
@@ -104,9 +105,10 @@ export class AvailabilityService {
     dateRange: DateRange
   ): Promise<AvailabilityResult & { priceWithMarkup?: number }> {
     // Fetch property with connector config
-    const property = await prisma.property.findUnique({
-      where: { id: propertyId },
-    });
+    const property = await queryOne<Property>(
+      `SELECT * FROM "Property" WHERE "id" = $1`,
+      [propertyId],
+    );
 
     if (!property) {
       return {
@@ -157,9 +159,10 @@ export class AvailabilityService {
    * Refresh availability cache for a property
    */
   static async refreshCache(propertyId: string, days: number = 90): Promise<void> {
-    const property = await prisma.property.findUnique({
-      where: { id: propertyId },
-    });
+    const property = await queryOne<Property>(
+      `SELECT * FROM "Property" WHERE "id" = $1`,
+      [propertyId],
+    );
 
     if (!property) {
       throw new Error('Property not found');
@@ -191,20 +194,13 @@ export class AvailabilityService {
 
     // Batch upsert
     for (const entry of cacheEntries) {
-      await prisma.availabilityCache.upsert({
-        where: {
-          propertyId_date: {
-            propertyId: entry.propertyId,
-            date: entry.date,
-          },
-        },
-        update: {
-          available: entry.available,
-          price: entry.price,
-          lastFetch: entry.lastFetch,
-        },
-        create: entry,
-      });
+      await query(
+        `INSERT INTO "AvailabilityCache" ("id", "propertyId", "date", "available", "price", "lastFetch")
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT ("propertyId", "date") DO UPDATE
+         SET "available" = EXCLUDED."available", "price" = EXCLUDED."price", "lastFetch" = EXCLUDED."lastFetch"`,
+        [generateId(), entry.propertyId, entry.date, entry.available, entry.price, entry.lastFetch],
+      );
     }
   }
 
@@ -224,12 +220,10 @@ export class AvailabilityService {
       dates.push(date);
     }
 
-    const cached = await prisma.availabilityCache.findMany({
-      where: {
-        propertyId,
-        date: { in: dates },
-      },
-    });
+    const cached = await query<AvailabilityCacheRow>(
+      `SELECT * FROM "AvailabilityCache" WHERE "propertyId" = $1 AND "date" = ANY($2::date[])`,
+      [propertyId, dates],
+    );
 
     // If we don't have complete cache, return null
     if (cached.length !== nights) {

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import prisma from '@/lib/db';
+import { queryOne } from '@/lib/db';
+import type { Booking, Property } from '@/lib/db/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,10 +12,13 @@ interface BookingDetailPageProps {
 export default async function BookingDetailPage({ params }: BookingDetailPageProps) {
   const { id } = await params;
 
-  const booking = await prisma.booking.findUnique({
-    where: { id },
-    include: { property: true },
-  });
+  const booking = await queryOne<Booking & { property: Property }>(
+    `SELECT b.*, row_to_json(p) AS property
+     FROM "Booking" b
+     JOIN "Property" p ON b."propertyId" = p."id"
+     WHERE b."id" = $1`,
+    [id],
+  );
 
   if (!booking) {
     notFound();

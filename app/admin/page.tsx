@@ -1,37 +1,40 @@
 import Link from 'next/link';
-import prisma from '@/lib/db';
+import { query, queryOne } from '@/lib/db';
+import type { Booking, Property } from '@/lib/db/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboard() {
   // Get stats
-  const [totalBookings, pendingBookings, totalProperties, recentBookings] = await Promise.all([
-    prisma.booking.count(),
-    prisma.booking.count({
-      where: {
-        status: 'pending',
-        paymentStatus: 'succeeded',
-      },
-    }),
-    prisma.property.count({ where: { active: true } }),
-    prisma.booking.findMany({
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-      include: { property: true },
-    }),
+  const [totalBookingsRow, pendingBookingsRow, totalPropertiesRow, recentBookings] = await Promise.all([
+    queryOne<{ count: number }>(`SELECT COUNT(*)::int AS count FROM "Booking"`),
+    queryOne<{ count: number }>(
+      `SELECT COUNT(*)::int AS count FROM "Booking" WHERE "status" = 'pending' AND "paymentStatus" = 'succeeded'`,
+    ),
+    queryOne<{ count: number }>(`SELECT COUNT(*)::int AS count FROM "Property" WHERE "active" = true`),
+    query<Booking & { property: Property }>(
+      `SELECT b.*, row_to_json(p) AS property
+       FROM "Booking" b
+       JOIN "Property" p ON b."propertyId" = p."id"
+       ORDER BY b."createdAt" DESC
+       LIMIT 5`,
+    ),
   ]);
 
-  // Calculate total revenue
-  const revenueData = await prisma.booking.aggregate({
-    where: { paymentStatus: 'succeeded' },
-    _sum: {
-      totalPrice: true,
-      netProfit: true,
-    },
-  });
+  const totalBookings = totalBookingsRow?.count ?? 0;
+  const pendingBookings = pendingBookingsRow?.count ?? 0;
+  const totalProperties = totalPropertiesRow?.count ?? 0;
 
-  const totalRevenue = revenueData._sum.totalPrice || 0;
-  const totalProfit = revenueData._sum.netProfit || 0;
+  // Calculate total revenue
+  const revenueRow = await queryOne<{ totalRevenue: number; totalProfit: number }>(
+    `SELECT COALESCE(SUM("totalPrice"), 0) AS "totalRevenue",
+            COALESCE(SUM("netProfit"), 0) AS "totalProfit"
+     FROM "Booking"
+     WHERE "paymentStatus" = 'succeeded'`,
+  );
+
+  const totalRevenue = revenueRow?.totalRevenue ?? 0;
+  const totalProfit = revenueRow?.totalProfit ?? 0;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

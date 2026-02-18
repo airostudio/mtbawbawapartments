@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import prisma from '@/lib/db';
+import { query, queryOne } from '@/lib/db';
+import type { Operator, Property, Payout } from '@/lib/db/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,35 +12,34 @@ interface OperatorDetailPageProps {
 export default async function OperatorDetailPage({ params }: OperatorDetailPageProps) {
   const { id } = await params;
 
-  const operator = await prisma.operator.findUnique({
-    where: { id },
-    include: {
-      properties: {
-        include: {
-          _count: {
-            select: {
-              bookings: true,
-            },
-          },
-        },
-      },
-      payouts: {
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-      },
-    },
-  });
+  const operator = await queryOne<Operator>(
+    `SELECT * FROM "Operator" WHERE "id" = $1`,
+    [id],
+  );
 
   if (!operator) {
     notFound();
   }
 
+  const properties = await query<Property & { _count: { bookings: number } }>(
+    `SELECT p.*,
+       json_build_object('bookings', (SELECT COUNT(*)::int FROM "Booking" WHERE "propertyId" = p."id")) AS "_count"
+     FROM "Property" p
+     WHERE p."operatorId" = $1`,
+    [id],
+  );
+
+  const payouts = await query<Payout>(
+    `SELECT * FROM "Payout" WHERE "operatorId" = $1 ORDER BY "createdAt" DESC LIMIT 10`,
+    [id],
+  );
+
   // Calculate total earnings
-  const totalPayouts = operator.payouts
+  const totalPayouts = payouts
     .filter(p => p.status === 'succeeded')
     .reduce((sum, p) => sum + p.amount, 0);
 
-  const pendingPayouts = operator.payouts
+  const pendingPayouts = payouts
     .filter(p => p.status === 'pending' || p.status === 'processing')
     .reduce((sum, p) => sum + p.amount, 0);
 
@@ -72,7 +72,7 @@ export default async function OperatorDetailPage({ params }: OperatorDetailPageP
 
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-sm text-gray-600">Properties</p>
-          <p className="text-3xl font-bold text-gray-900">{operator.properties.length}</p>
+          <p className="text-3xl font-bold text-gray-900">{properties.length}</p>
         </div>
       </div>
 
@@ -119,11 +119,11 @@ export default async function OperatorDetailPage({ params }: OperatorDetailPageP
           {/* Properties */}
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Properties</h2>
-            {operator.properties.length === 0 ? (
+            {properties.length === 0 ? (
               <p className="text-gray-500">No properties assigned yet</p>
             ) : (
               <div className="space-y-3">
-                {operator.properties.map((property) => (
+                {properties.map((property) => (
                   <div key={property.id} className="border rounded-lg p-4">
                     <div className="flex justify-between items-start">
                       <div>
@@ -151,7 +151,7 @@ export default async function OperatorDetailPage({ params }: OperatorDetailPageP
           {/* Recent Payouts */}
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Payouts</h2>
-            {operator.payouts.length === 0 ? (
+            {payouts.length === 0 ? (
               <p className="text-gray-500">No payouts yet</p>
             ) : (
               <div className="overflow-x-auto">
@@ -165,7 +165,7 @@ export default async function OperatorDetailPage({ params }: OperatorDetailPageP
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {operator.payouts.map((payout) => (
+                    {payouts.map((payout) => (
                       <tr key={payout.id}>
                         <td className="py-2 text-sm text-gray-900">
                           {payout.createdAt.toLocaleDateString('en-AU')}

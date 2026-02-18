@@ -4,7 +4,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import prisma from '@/lib/db';
+import { query, queryOne, generateId } from '@/lib/db';
+import type { Property, Booking } from '@/lib/db/types';
 import { createCheckoutSession, calculateStripeFee } from '@/lib/stripe';
 import { AvailabilityService } from '@/lib/services/availability';
 
@@ -24,9 +25,10 @@ export async function POST(request: NextRequest) {
     const data = checkoutSchema.parse(body);
 
     // Fetch property
-    const property = await prisma.property.findUnique({
-      where: { id: data.propertyId },
-    });
+    const property = await queryOne<Property>(
+      `SELECT * FROM "Property" WHERE "id" = $1`,
+      [data.propertyId],
+    );
 
     if (!property || !property.active) {
       return NextResponse.json(
@@ -88,27 +90,23 @@ export async function POST(request: NextRequest) {
     const netProfit = totalMarkup - stripeFee;
 
     // Create booking record
-    const booking = await prisma.booking.create({
-      data: {
-        propertyId: property.id,
-        checkIn,
-        checkOut,
-        nights,
-        guestName: data.guestName,
-        guestEmail: data.guestEmail,
-        guestPhone: data.guestPhone,
-        numberOfGuests: data.numberOfGuests,
-        basePricePerNight,
-        markupPercent,
-        totalBasePrice,
-        totalMarkup,
-        totalPrice,
-        stripeFee,
-        netProfit,
-        status: 'pending',
-        paymentStatus: 'pending',
-      },
-    });
+    const bookingId = generateId();
+    const booking = await queryOne<Booking>(
+      `INSERT INTO "Booking" (
+        "id", "propertyId", "checkIn", "checkOut", "nights",
+        "guestName", "guestEmail", "guestPhone", "numberOfGuests",
+        "basePricePerNight", "markupPercent", "totalBasePrice", "totalMarkup",
+        "totalPrice", "stripeFee", "netProfit", "status", "paymentStatus",
+        "createdAt", "updatedAt"
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,NOW(),NOW())
+      RETURNING *`,
+      [
+        bookingId, property.id, checkIn, checkOut, nights,
+        data.guestName, data.guestEmail, data.guestPhone, data.numberOfGuests,
+        basePricePerNight, markupPercent, totalBasePrice, totalMarkup,
+        totalPrice, stripeFee, netProfit, 'pending', 'pending',
+      ],
+    );
 
     // Create Stripe checkout session
     const session = await createCheckoutSession({
@@ -122,10 +120,10 @@ export async function POST(request: NextRequest) {
     });
 
     // Update booking with Stripe session ID
-    await prisma.booking.update({
-      where: { id: booking.id },
-      data: { stripeSessionId: session.id },
-    });
+    await query(
+      `UPDATE "Booking" SET "stripeSessionId" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
+      [session.id, booking!.id],
+    );
 
     return NextResponse.json({
       sessionId: session.id,

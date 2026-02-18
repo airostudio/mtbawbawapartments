@@ -1,20 +1,19 @@
 import Link from 'next/link';
-import prisma from '@/lib/db';
+import { query } from '@/lib/db';
+import type { Operator } from '@/lib/db/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function OperatorsPage() {
-  const operators = await prisma.operator.findMany({
-    orderBy: { name: 'asc' },
-    include: {
-      _count: {
-        select: {
-          properties: true,
-          payouts: true,
-        },
-      },
-    },
-  });
+  const operators = await query<Operator & { _count: { properties: number; payouts: number } }>(
+    `SELECT o.*,
+       json_build_object(
+         'properties', (SELECT COUNT(*)::int FROM "Property" WHERE "operatorId" = o."id"),
+         'payouts', (SELECT COUNT(*)::int FROM "Payout" WHERE "operatorId" = o."id")
+       ) AS "_count"
+     FROM "Operator" o
+     ORDER BY o."name" ASC`,
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

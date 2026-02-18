@@ -1,6 +1,7 @@
 import PropertyGrid from '@/components/PropertyGrid';
 import SearchForm from '@/components/DatePicker/SearchForm';
-import prisma from '@/lib/db';
+import { query } from '@/lib/db';
+import type { Property } from '@/lib/db/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,15 +21,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   // Fetch all active properties
   // In a real implementation, if dates are provided, we'd filter by availability
-  const properties = await prisma.property.findMany({
-    where: {
-      active: true,
-      ...(guests ? { sleeps: { gte: guests } } : {}),
-    },
-    orderBy: {
-      name: 'asc',
-    },
-  });
+  const properties = guests
+    ? await query<Property>(
+        `SELECT * FROM "Property" WHERE "active" = true AND "sleeps" >= $1 ORDER BY "name" ASC`,
+        [guests],
+      )
+    : await query<Property>(
+        `SELECT * FROM "Property" WHERE "active" = true ORDER BY "name" ASC`,
+      );
 
   const hasSearchParams = checkIn && checkOut;
 
