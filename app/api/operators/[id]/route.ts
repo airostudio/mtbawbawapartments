@@ -82,6 +82,13 @@ export async function PATCH(
       values,
     );
 
+    if (!operator) {
+      return NextResponse.json(
+        { error: 'Operator not found' },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({ operator });
   } catch (error) {
     console.error('Error updating operator:', error);

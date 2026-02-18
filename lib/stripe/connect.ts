@@ -235,6 +235,10 @@ export async function createBatchPayout(params: {
     [generateId(), params.operatorId, params.amount, params.bookingIds, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), new Date()],
   );
 
+  if (!payout) {
+    throw new Error('Failed to create payout record');
+  }
+
   // If using auto Connect mode, create the transfer
   if (operator.payoutMode === 'auto_connect') {
     try {
@@ -251,7 +255,7 @@ export async function createBatchPayout(params: {
       // Update payout record with transfer details
       await query(
         `UPDATE "Payout" SET "stripeTransferId" = $1, "status" = 'processing', "updatedAt" = NOW() WHERE "id" = $2`,
-        [transfer.id, payout!.id],
+        [transfer.id, payout.id],
       );
 
       // Update bookings
@@ -266,7 +270,7 @@ export async function createBatchPayout(params: {
       // Update payout status to failed
       await query(
         `UPDATE "Payout" SET "status" = 'failed', "failureReason" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
-        [error instanceof Error ? error.message : 'Unknown error', payout!.id],
+        [error instanceof Error ? error.message : 'Unknown error', payout.id],
       );
 
       throw error;

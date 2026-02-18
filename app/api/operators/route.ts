@@ -71,6 +71,13 @@ export async function POST(request: NextRequest) {
       [generateId(), data.name, data.email, data.phone || null, data.businessName || null, data.bookingUrl || null, data.preferredContact || 'email'],
     );
 
+    if (!operator) {
+      return NextResponse.json(
+        { error: 'Failed to create operator' },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({ operator }, { status: 201 });
   } catch (error) {
     console.error('Error creating operator:', error);
