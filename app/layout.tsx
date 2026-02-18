@@ -12,20 +12,27 @@ export const metadata: Metadata = {
   manifest: '/site.webmanifest',
 };
 
-/* ─── Mountain logo SVG ─────────────────────────────────────────── */
-function MountainLogo({ size = 36 }: { size?: number }) {
+/* ─── Snowflake logo — modelled on Mt Baw Baw's brand mark ──────── */
+function SnowflakeLogo({ size = 36 }: { size?: number }) {
+  /* Each arm: length 38 from centre (viewBox 100×100, centre 50,50).
+     Two branch pairs at r=22 and r=31, angled at 60° from arm axis.  */
+  const arm = (
+    <>
+      <line x1="0" y1="0"   x2="0" y2="-38" strokeWidth="5.5" />
+      <line x1="0" y1="-22" x2="-9.5" y2="-27.5" strokeWidth="3.5" />
+      <line x1="0" y1="-22" x2=" 9.5" y2="-27.5" strokeWidth="3.5" />
+      <line x1="0" y1="-31" x2="-5.2" y2="-33.6" strokeWidth="2.5" />
+      <line x1="0" y1="-31" x2=" 5.2" y2="-33.6" strokeWidth="2.5" />
+    </>
+  );
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* back peak */}
-      <path d="M28 34L20 10L12 34Z" fill="#4a8fd4" />
-      {/* front-left peak */}
-      <path d="M16 34L8 18L0 34Z" fill="#2d6abf" />
-      {/* front-right peak */}
-      <path d="M40 34L32 16L24 34Z" fill="#2d6abf" />
-      {/* snow caps */}
-      <path d="M20 10L16.5 19H23.5L20 10Z" fill="white" opacity="0.95" />
-      <path d="M8 18L5.5 23H10.5L8 18Z" fill="white" opacity="0.85" />
-      <path d="M32 16L29.5 22H34.5L32 16Z" fill="white" opacity="0.85" />
+    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(50,50)" stroke="#c8deff" strokeLinecap="round">
+        {[0, 60, 120, 180, 240, 300].map((deg) => (
+          <g key={deg} transform={`rotate(${deg})`}>{arm}</g>
+        ))}
+      </g>
+      <circle cx="50" cy="50" r="5.5" fill="#c8deff" />
     </svg>
   );
 }
@@ -46,7 +53,7 @@ export default function RootLayout({
 
               {/* Logo */}
               <Link href="/" className="flex items-center gap-3 group">
-                <MountainLogo size={34} />
+                <SnowflakeLogo size={34} />
                 <div className="leading-none">
                   <span className="block text-base font-bold tracking-tight text-white group-hover:text-blue-200 transition-colors">
                     Mt Baw Baw
@@ -107,7 +114,7 @@ export default function RootLayout({
               {/* Brand */}
               <div className="md:col-span-2">
                 <div className="flex items-center gap-3 mb-4">
-                  <MountainLogo size={30} />
+                  <SnowflakeLogo size={30} />
                   <div className="leading-none">
                     <span className="block text-sm font-bold text-white">Mt Baw Baw Apartments</span>
                     <span className="block text-[10px] text-blue-400/80 tracking-widest uppercase mt-0.5">Alpine Accommodation</span>
