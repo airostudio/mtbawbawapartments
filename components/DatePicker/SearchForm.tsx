@@ -3,88 +3,92 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function SearchForm({ initialValues }: { initialValues?: {
-  checkIn?: string;
-  checkOut?: string;
-  guests?: number;
-}}) {
+export default function SearchForm({ initialValues }: {
+  initialValues?: {
+    checkIn?: string;
+    checkOut?: string;
+    guests?: number;
+  };
+}) {
   const router = useRouter();
-  const [checkIn, setCheckIn] = useState(initialValues?.checkIn || '');
+  const [checkIn, setCheckIn]   = useState(initialValues?.checkIn  || '');
   const [checkOut, setCheckOut] = useState(initialValues?.checkOut || '');
-  const [guests, setGuests] = useState(initialValues?.guests || 2);
+  const [guests, setGuests]     = useState(initialValues?.guests   || 2);
+
+  const today = new Date().toISOString().split('T')[0];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!checkIn || !checkOut) {
-      alert('Please select check-in and check-out dates');
-      return;
-    }
-
-    const params = new URLSearchParams();
-    params.set('checkIn', checkIn);
-    params.set('checkOut', checkOut);
-    params.set('guests', guests.toString());
-
-    router.push(`/?${params.toString()}`);
+    if (!checkIn || !checkOut) return;
+    const p = new URLSearchParams({ checkIn, checkOut, guests: guests.toString() });
+    router.push(`/?${p.toString()}`);
   };
 
   return (
-    <form onSubmit={handleSearch} className="bg-white rounded-lg shadow-md p-6 mb-8">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div>
-          <label htmlFor="checkIn" className="block text-sm font-medium text-gray-700 mb-1">
-            Check-in
+    <form
+      onSubmit={handleSearch}
+      className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl shadow-black/30 border border-white/60 overflow-hidden"
+    >
+      <div className="flex flex-col sm:flex-row">
+
+        {/* Check-in */}
+        <div className="flex-1 px-5 py-4 border-b sm:border-b-0 sm:border-r border-slate-200/80">
+          <label htmlFor="sf-checkin" className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+            Check In
           </label>
           <input
             type="date"
-            id="checkIn"
+            id="sf-checkin"
             value={checkIn}
             onChange={(e) => setCheckIn(e.target.value)}
-            min={new Date().toISOString().split('T')[0]}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            min={today}
+            className="w-full text-slate-800 font-semibold text-sm bg-transparent focus:outline-none"
             required
           />
         </div>
 
-        <div>
-          <label htmlFor="checkOut" className="block text-sm font-medium text-gray-700 mb-1">
-            Check-out
+        {/* Check-out */}
+        <div className="flex-1 px-5 py-4 border-b sm:border-b-0 sm:border-r border-slate-200/80">
+          <label htmlFor="sf-checkout" className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+            Check Out
           </label>
           <input
             type="date"
-            id="checkOut"
+            id="sf-checkout"
             value={checkOut}
             onChange={(e) => setCheckOut(e.target.value)}
-            min={checkIn || new Date().toISOString().split('T')[0]}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            min={checkIn || today}
+            className="w-full text-slate-800 font-semibold text-sm bg-transparent focus:outline-none"
             required
           />
         </div>
 
-        <div>
-          <label htmlFor="guests" className="block text-sm font-medium text-gray-700 mb-1">
+        {/* Guests */}
+        <div className="flex-1 px-5 py-4 border-b sm:border-b-0 sm:border-r border-slate-200/80">
+          <label htmlFor="sf-guests" className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
             Guests
           </label>
           <select
-            id="guests"
+            id="sf-guests"
             value={guests}
             onChange={(e) => setGuests(parseInt(e.target.value))}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full text-slate-800 font-semibold text-sm bg-transparent focus:outline-none"
           >
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-              <option key={num} value={num}>
-                {num} {num === 1 ? 'guest' : 'guests'}
-              </option>
+            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>{n} {n === 1 ? 'Guest' : 'Guests'}</option>
             ))}
           </select>
         </div>
 
-        <div className="flex items-end">
+        {/* CTA */}
+        <div className="flex items-center px-3 py-3">
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-bold px-8 py-3.5 rounded-xl transition-colors shadow-lg shadow-orange-500/40 text-sm"
           >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
             Search
           </button>
         </div>

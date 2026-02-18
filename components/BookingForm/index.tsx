@@ -16,6 +16,10 @@ interface BookingFormProps {
   initialGuests?: number;
 }
 
+function fmtAUD(n: number) {
+  return '$' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
 export default function BookingForm({
   property,
   initialCheckIn = '',
@@ -23,33 +27,29 @@ export default function BookingForm({
   initialGuests = 2,
 }: BookingFormProps) {
   const router = useRouter();
-  const [checkIn, setCheckIn] = useState(initialCheckIn);
-  const [checkOut, setCheckOut] = useState(initialCheckOut);
-  const [guests, setGuests] = useState(initialGuests);
-  const [guestName, setGuestName] = useState('');
+  const [checkIn,    setCheckIn]    = useState(initialCheckIn);
+  const [checkOut,   setCheckOut]   = useState(initialCheckOut);
+  const [guests,     setGuests]     = useState(initialGuests);
+  const [guestName,  setGuestName]  = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState('');
 
-  // Calculate estimated price
-  const calculatePrice = () => {
+  const today = new Date().toISOString().split('T')[0];
+
+  const calcPrice = () => {
     if (!checkIn || !checkOut) return null;
-
     const nights = Math.ceil(
-      (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)
+      (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86_400_000,
     );
-
     if (nights < 1) return null;
-
     const basePrice = property.basePrice * nights;
-    const markup = basePrice * (property.markupPercent / 100);
-    const total = basePrice + markup;
-
-    return { nights, basePrice, markup, total };
+    const markup    = basePrice * (property.markupPercent / 100);
+    return { nights, basePrice, markup, total: basePrice + markup };
   };
 
-  const price = calculatePrice();
+  const price = calcPrice();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +57,7 @@ export default function BookingForm({
     setError('');
 
     try {
-      const response = await fetch('/api/checkout', {
+      const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -71,16 +71,9 @@ export default function BookingForm({
         }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session');
-      }
-
-      // Redirect to Stripe Checkout
-      if (data.sessionUrl) {
-        window.location.href = data.sessionUrl;
-      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create checkout');
+      if (data.sessionUrl) window.location.href = data.sessionUrl;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setLoading(false);
@@ -88,147 +81,150 @@ export default function BookingForm({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 sticky top-4">
-      <div className="mb-6">
-        <p className="text-3xl font-bold text-gray-900">
-          ${property.basePrice}
-          <span className="text-lg font-normal text-gray-600">/night</span>
-        </p>
-        <p className="text-sm text-gray-500">Plus {property.markupPercent}% service fee</p>
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
+
+      {/* ── Price header ───────────────────────────────────── */}
+      <div className="bg-mountain-900 text-white px-6 py-5">
+        <div className="flex items-baseline gap-2">
+          <span className="text-3xl font-extrabold tracking-tight">{fmtAUD(property.basePrice)}</span>
+          <span className="text-blue-300 font-medium">/ night</span>
+        </div>
+        {property.markupPercent > 0 && (
+          <p className="text-blue-300/60 text-xs mt-1">
+            {property.markupPercent}% service fee included in total
+          </p>
+        )}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="checkIn" className="block text-sm font-medium text-gray-700 mb-1">
-            Check-in
-          </label>
-          <input
-            type="date"
-            id="checkIn"
-            value={checkIn}
-            onChange={(e) => setCheckIn(e.target.value)}
-            min={new Date().toISOString().split('T')[0]}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            required
-          />
+      <form onSubmit={handleSubmit} className="p-5 space-y-4">
+
+        {/* ── Dates ──────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+              Check In
+            </label>
+            <input
+              type="date"
+              value={checkIn}
+              onChange={(e) => setCheckIn(e.target.value)}
+              min={today}
+              className="w-full px-3 py-2.5 text-sm font-medium text-slate-800 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+              Check Out
+            </label>
+            <input
+              type="date"
+              value={checkOut}
+              onChange={(e) => setCheckOut(e.target.value)}
+              min={checkIn || today}
+              className="w-full px-3 py-2.5 text-sm font-medium text-slate-800 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            />
+          </div>
         </div>
 
+        {/* ── Guests ──────────────────────────────────────────── */}
         <div>
-          <label htmlFor="checkOut" className="block text-sm font-medium text-gray-700 mb-1">
-            Check-out
-          </label>
-          <input
-            type="date"
-            id="checkOut"
-            value={checkOut}
-            onChange={(e) => setCheckOut(e.target.value)}
-            min={checkIn || new Date().toISOString().split('T')[0]}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            required
-          />
-        </div>
-
-        <div>
-          <label htmlFor="guests" className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
             Guests
           </label>
           <select
-            id="guests"
             value={guests}
             onChange={(e) => setGuests(parseInt(e.target.value))}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2.5 text-sm font-medium text-slate-800 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            {Array.from({ length: property.sleeps }, (_, i) => i + 1).map((num) => (
-              <option key={num} value={num}>
-                {num} {num === 1 ? 'guest' : 'guests'}
-              </option>
+            {Array.from({ length: property.sleeps }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>{n} {n === 1 ? 'guest' : 'guests'}</option>
             ))}
           </select>
         </div>
 
+        {/* ── Price breakdown ──────────────────────────────────── */}
         {price && (
-          <div className="border-t pt-4 space-y-2">
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-2.5">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">
-                ${property.basePrice} × {price.nights} {price.nights === 1 ? 'night' : 'nights'}
+              <span className="text-slate-500">
+                {fmtAUD(property.basePrice)} × {price.nights} {price.nights === 1 ? 'night' : 'nights'}
               </span>
-              <span className="text-gray-900">${price.basePrice.toFixed(2)}</span>
+              <span className="font-medium text-slate-800">{fmtAUD(price.basePrice)}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Service fee ({property.markupPercent}%)</span>
-              <span className="text-gray-900">${price.markup.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between font-bold text-lg border-t pt-2">
-              <span>Total</span>
-              <span>${price.total.toFixed(2)} AUD</span>
+            {property.markupPercent > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Service fee ({property.markupPercent}%)</span>
+                <span className="font-medium text-slate-800">{fmtAUD(price.markup)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-base font-bold border-t border-slate-200 pt-2.5">
+              <span className="text-slate-900">Total AUD</span>
+              <span className="text-slate-900">{fmtAUD(price.total)}</span>
             </div>
           </div>
         )}
 
-        <div className="border-t pt-4 space-y-4">
-          <h3 className="font-semibold text-gray-900">Guest Information</h3>
+        {/* ── Guest details ─────────────────────────────────────── */}
+        <div className="space-y-3 border-t border-slate-100 pt-4">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">Guest Details</h3>
 
-          <div>
-            <label htmlFor="guestName" className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name
-            </label>
-            <input
-              type="text"
-              id="guestName"
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="guestEmail" className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              id="guestEmail"
-              value={guestEmail}
-              onChange={(e) => setGuestEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="guestPhone" className="block text-sm font-medium text-gray-700 mb-1">
-              Phone
-            </label>
-            <input
-              type="tel"
-              id="guestPhone"
-              value={guestPhone}
-              onChange={(e) => setGuestPhone(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
-          </div>
+          <input
+            type="text"
+            placeholder="Full Name"
+            value={guestName}
+            onChange={(e) => setGuestName(e.target.value)}
+            className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-400"
+            required
+          />
+          <input
+            type="email"
+            placeholder="Email Address"
+            value={guestEmail}
+            onChange={(e) => setGuestEmail(e.target.value)}
+            className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-400"
+            required
+          />
+          <input
+            type="tel"
+            placeholder="Phone Number"
+            value={guestPhone}
+            onChange={(e) => setGuestPhone(e.target.value)}
+            className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-400"
+            required
+          />
         </div>
 
+        {/* ── Error ──────────────────────────────────────────── */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
             {error}
           </div>
         )}
 
+        {/* ── Submit ─────────────────────────────────────────── */}
         <button
           type="submit"
           disabled={loading || !price}
-          className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="w-full bg-orange-500 hover:bg-orange-600 active:bg-orange-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-colors shadow-lg shadow-orange-500/25 text-sm"
         >
-          {loading ? 'Processing...' : 'Book Now'}
+          {loading
+            ? 'Processing…'
+            : price
+            ? `Book Now · ${fmtAUD(price.total)} AUD`
+            : 'Select dates to continue'}
         </button>
-      </form>
 
-      <p className="text-xs text-gray-500 mt-4 text-center">
-        You won&apos;t be charged yet. Review your booking on the next page.
-      </p>
+        {/* Trust */}
+        <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
+          <svg className="w-3.5 h-3.5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+          </svg>
+          Secure checkout · Powered by Stripe
+        </div>
+
+      </form>
     </div>
   );
 }
