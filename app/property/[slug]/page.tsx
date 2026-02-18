@@ -20,10 +20,15 @@ export default async function PropertyPage({ params, searchParams }: PropertyPag
   const { slug }  = await params;
   const search    = await searchParams;
 
-  const property = await queryOne<Property>(
-    `SELECT * FROM "Property" WHERE "slug" = $1 AND "active" = true`,
-    [slug],
-  );
+  let property: Property | null = null;
+  try {
+    property = await queryOne<Property>(
+      `SELECT * FROM "Property" WHERE "slug" = $1 AND "active" = true`,
+      [slug],
+    );
+  } catch (err) {
+    console.error('Failed to fetch property:', err);
+  }
 
   if (!property) notFound();
 

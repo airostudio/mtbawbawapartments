@@ -31,14 +31,22 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const checkOut = params.checkOut;
   const guests = params.guests ? parseInt(params.guests) : undefined;
 
-  const properties = guests
-    ? await query<Property>(
-        `SELECT * FROM "Property" WHERE "active" = true AND "sleeps" >= $1 ORDER BY "name" ASC`,
-        [guests],
-      )
-    : await query<Property>(
-        `SELECT * FROM "Property" WHERE "active" = true ORDER BY "name" ASC`,
-      );
+  let properties: Property[] = [];
+  let dbError = false;
+
+  try {
+    properties = guests
+      ? await query<Property>(
+          `SELECT * FROM "Property" WHERE "active" = true AND "sleeps" >= $1 ORDER BY "name" ASC`,
+          [guests],
+        )
+      : await query<Property>(
+          `SELECT * FROM "Property" WHERE "active" = true ORDER BY "name" ASC`,
+        );
+  } catch (err) {
+    console.error('Failed to fetch properties:', err);
+    dbError = true;
+  }
 
   const hasSearch = !!(checkIn && checkOut);
 
@@ -147,7 +155,21 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </div>
           </div>
 
-          <PropertyGrid properties={properties} searchParams={{ checkIn, checkOut, guests }} />
+          {dbError ? (
+            <div className="py-20 text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-50 mb-5">
+                <svg className="w-8 h-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+              <h3 className="text-base font-semibold text-slate-800 mb-1">Properties temporarily unavailable</h3>
+              <p className="text-sm text-slate-500 max-w-sm mx-auto">
+                We&apos;re having trouble loading properties right now. Please try again in a few moments.
+              </p>
+            </div>
+          ) : (
+            <PropertyGrid properties={properties} searchParams={{ checkIn, checkOut, guests }} />
+          )}
         </div>
       </section>
 
