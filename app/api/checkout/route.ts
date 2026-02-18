@@ -108,6 +108,13 @@ export async function POST(request: NextRequest) {
       ],
     );
 
+    if (!booking) {
+      return NextResponse.json(
+        { error: 'Failed to create booking record' },
+        { status: 500 }
+      );
+    }
+
     // Create Stripe checkout session
     const session = await createCheckoutSession({
       bookingId: booking.id,
@@ -122,7 +129,7 @@ export async function POST(request: NextRequest) {
     // Update booking with Stripe session ID
     await query(
       `UPDATE "Booking" SET "stripeSessionId" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
-      [session.id, booking!.id],
+      [session.id, booking.id],
     );
 
     return NextResponse.json({
