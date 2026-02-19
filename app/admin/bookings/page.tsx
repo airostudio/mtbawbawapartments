@@ -1,13 +1,16 @@
 import Link from 'next/link';
-import prisma from '@/lib/db';
+import { query } from '@/lib/db';
+import type { Booking, Property } from '@/lib/db/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function BookingsPage() {
-  const bookings = await prisma.booking.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: { property: true },
-  });
+  const bookings = await query<Booking & { property: Property }>(
+    `SELECT b.*, row_to_json(p) AS property
+     FROM "Booking" b
+     JOIN "Property" p ON b."propertyId" = p."id"
+     ORDER BY b."createdAt" DESC`,
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

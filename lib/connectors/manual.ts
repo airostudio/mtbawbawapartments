@@ -4,7 +4,8 @@
  */
 
 import { BaseConnector, DateRange, AvailabilityResult, PropertyConfig } from './base';
-import prisma from '@/lib/db';
+import { query } from '@/lib/db';
+import type { AvailabilityCacheRow } from '@/lib/db/types';
 
 export class ManualConnector extends BaseConnector {
   constructor(config: PropertyConfig) {
@@ -26,14 +27,10 @@ export class ManualConnector extends BaseConnector {
     }
 
     // Check if all dates are available in cache
-    const cachedAvailability = await prisma.availabilityCache.findMany({
-      where: {
-        propertyId: this.config.propertyId,
-        date: {
-          in: dates.map(d => new Date(d)),
-        },
-      },
-    });
+    const cachedAvailability = await query<AvailabilityCacheRow>(
+      `SELECT * FROM "AvailabilityCache" WHERE "propertyId" = $1 AND "date" = ANY($2::date[])`,
+      [this.config.propertyId, dates.map(d => new Date(d))],
+    );
 
     // If we don't have cache for all dates, assume unavailable
     if (cachedAvailability.length !== nights) {
@@ -64,15 +61,10 @@ export class ManualConnector extends BaseConnector {
   async fetchCalendar(startDate: Date, endDate: Date): Promise<Map<string, AvailabilityResult>> {
     const results = new Map<string, AvailabilityResult>();
 
-    const cached = await prisma.availabilityCache.findMany({
-      where: {
-        propertyId: this.config.propertyId,
-        date: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
-    });
+    const cached = await query<AvailabilityCacheRow>(
+      `SELECT * FROM "AvailabilityCache" WHERE "propertyId" = $1 AND "date" >= $2 AND "date" <= $3`,
+      [this.config.propertyId, startDate, endDate],
+    );
 
     for (const entry of cached) {
       const dateStr = this.formatDate(entry.date);

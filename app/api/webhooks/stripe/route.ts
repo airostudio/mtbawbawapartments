@@ -1,131 +1,133 @@
 /**
- * Stripe Webhook Handler
- * Handles payment confirmation and other Stripe events
+ * POST /api/webhooks/stripe
+ * Verifies the Stripe signature then handles payment lifecycle events.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { stripe } from '@/lib/stripe';
-import prisma from '@/lib/db';
+import { getStripe } from '@/lib/stripe';
+import { query, queryOne } from '@/lib/db';
+import type { Booking, Property } from '@/lib/db/types';
 import { sendBookingAlert } from '@/lib/services/alerts';
 import { env } from '@/lib/utils/env';
+import type Stripe from 'stripe';
 
 export async function POST(request: NextRequest) {
-  const body = await request.text();
+  // ── Guard: webhook secret must be configured ──────────────────────────────
+  if (!env.STRIPE_WEBHOOK_SECRET) {
+    console.error('[webhook] STRIPE_WEBHOOK_SECRET is not set');
+    return NextResponse.json(
+      { error: 'Webhook not configured' },
+      { status: 500 },
+    );
+  }
+
+  const body      = await request.text();
   const headersList = await headers();
   const signature = headersList.get('stripe-signature');
 
   if (!signature) {
-    return NextResponse.json({ error: 'No signature' }, { status: 400 });
+    return NextResponse.json({ error: 'Missing stripe-signature header' }, { status: 400 });
   }
 
-  let event;
-
+  // ── Verify signature ──────────────────────────────────────────────────────
+  let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(
+    event = getStripe().webhooks.constructEvent(
       body,
       signature,
-      env.STRIPE_WEBHOOK_SECRET
+      env.STRIPE_WEBHOOK_SECRET,
     );
   } catch (err) {
-    console.error('Webhook signature verification failed:', err);
-    return NextResponse.json(
-      { error: 'Webhook signature verification failed' },
-      { status: 400 }
-    );
+    console.error('[webhook] signature verification failed:', err);
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
-  // Handle the event
+  // ── Handle events ─────────────────────────────────────────────────────────
   try {
     switch (event.type) {
       case 'checkout.session.completed':
-        await handleCheckoutCompleted(event.data.object);
+        await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
         break;
-
       case 'payment_intent.succeeded':
-        await handlePaymentSucceeded(event.data.object);
+        await handlePaymentSucceeded(event.data.object as Stripe.PaymentIntent);
         break;
-
       case 'payment_intent.payment_failed':
-        await handlePaymentFailed(event.data.object);
+        await handlePaymentFailed(event.data.object as Stripe.PaymentIntent);
         break;
-
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        // Ignore unhandled event types
+        break;
     }
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error('Error handling webhook:', error);
-    return NextResponse.json(
-      { error: 'Webhook handler failed' },
-      { status: 500 }
+    console.error('[webhook] handler error:', error);
+    // Return 200 so Stripe doesn't retry — we logged the failure
+    return NextResponse.json({ error: 'Handler failed — check server logs' }, { status: 500 });
+  }
+}
+
+// ── Event handlers ────────────────────────────────────────────────────────────
+
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  const bookingId = session.metadata?.bookingId;
+  if (!bookingId) {
+    console.error('[webhook] checkout.session.completed missing bookingId in metadata');
+    return;
+  }
+
+  await query(
+    `UPDATE "Booking"
+     SET "paymentStatus" = 'succeeded',
+         "stripePaymentIntent" = $1,
+         "updatedAt" = NOW()
+     WHERE "id" = $2`,
+    [session.payment_intent as string, bookingId],
+  );
+
+  const booking = await queryOne<Booking & { property: Property }>(
+    `SELECT b.*, row_to_json(p) AS property
+     FROM "Booking" b
+     JOIN "Property" p ON b."propertyId" = p."id"
+     WHERE b."id" = $1`,
+    [bookingId],
+  );
+
+  if (!booking) return;
+
+  if (!booking.alertsSent) {
+    await sendBookingAlert(booking);
+    await query(
+      `UPDATE "Booking" SET "alertsSent" = true, "updatedAt" = NOW() WHERE "id" = $1`,
+      [bookingId],
     );
   }
 }
 
-async function handleCheckoutCompleted(session: any) {
-  const bookingId = session.metadata?.bookingId;
+async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+  const bookingId = paymentIntent.metadata?.bookingId;
+  if (!bookingId) return;
 
-  if (!bookingId) {
-    console.error('No booking ID in session metadata');
-    return;
-  }
-
-  const booking = await prisma.booking.update({
-    where: { id: bookingId },
-    data: {
-      paymentStatus: 'succeeded',
-      stripePaymentIntent: session.payment_intent as string,
-    },
-    include: {
-      property: true,
-    },
-  });
-
-  console.log(`Payment succeeded for booking ${bookingId}`);
-
-  // Send booking alert
-  if (!booking.alertsSent) {
-    await sendBookingAlert(booking);
-    await prisma.booking.update({
-      where: { id: bookingId },
-      data: { alertsSent: true },
-    });
-  }
+  await query(
+    `UPDATE "Booking"
+     SET "paymentStatus" = 'succeeded',
+         "stripePaymentIntent" = $1,
+         "updatedAt" = NOW()
+     WHERE "id" = $2`,
+    [paymentIntent.id, bookingId],
+  );
 }
 
-async function handlePaymentSucceeded(paymentIntent: any) {
+async function handlePaymentFailed(paymentIntent: Stripe.PaymentIntent) {
   const bookingId = paymentIntent.metadata?.bookingId;
+  if (!bookingId) return;
 
-  if (!bookingId) {
-    return;
-  }
-
-  await prisma.booking.update({
-    where: { id: bookingId },
-    data: {
-      paymentStatus: 'succeeded',
-      stripePaymentIntent: paymentIntent.id,
-    },
-  });
-
-  console.log(`Payment intent succeeded for booking ${bookingId}`);
-}
-
-async function handlePaymentFailed(paymentIntent: any) {
-  const bookingId = paymentIntent.metadata?.bookingId;
-
-  if (!bookingId) {
-    return;
-  }
-
-  await prisma.booking.update({
-    where: { id: bookingId },
-    data: {
-      paymentStatus: 'failed',
-    },
-  });
-
-  console.log(`Payment failed for booking ${bookingId}`);
+  await query(
+    `UPDATE "Booking"
+     SET "paymentStatus" = 'failed',
+         "updatedAt" = NOW()
+     WHERE "id" = $1`,
+    [bookingId],
+  );
 }
