@@ -4,8 +4,6 @@ import SearchForm from '@/components/DatePicker/SearchForm';
 import { query } from '@/lib/db';
 import type { Property } from '@/lib/db/types';
 
-export const dynamic = 'force-dynamic';
-
 interface HomePageProps {
   searchParams: Promise<{
     checkIn?: string;
