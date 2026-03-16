@@ -1,248 +1,126 @@
-import Link from 'next/link';
-import PropertyGrid from '@/components/PropertyGrid';
-import SearchForm from '@/components/DatePicker/SearchForm';
-import { query } from '@/lib/db';
-import type { Property } from '@/lib/db/types';
+'use client';
 
-export const dynamic = 'force-dynamic';
+import Image from 'next/image';
 
-interface HomePageProps {
-  searchParams: Promise<{
-    checkIn?: string;
-    checkOut?: string;
-    guests?: string;
-  }>;
-}
-
-/* ─── Helpers ──────────────────────────────────────────────────── */
-function fmtDate(iso: string) {
-  try {
-    return new Date(iso).toLocaleDateString('en-AU', {
-      day: 'numeric', month: 'short', year: 'numeric',
-    });
-  } catch {
-    return iso;
-  }
-}
-
-export default async function HomePage({ searchParams }: HomePageProps) {
-  const params = await searchParams;
-  const checkIn = params.checkIn;
-  const checkOut = params.checkOut;
-  const guests = params.guests ? parseInt(params.guests) : undefined;
-
-  let properties: Property[] = [];
-  let dbError = false;
-
-  try {
-    properties = guests
-      ? await query<Property>(
-          `SELECT * FROM "Property" WHERE "active" = true AND "sleeps" >= $1 ORDER BY "name" ASC`,
-          [guests],
-        )
-      : await query<Property>(
-          `SELECT * FROM "Property" WHERE "active" = true ORDER BY "name" ASC`,
-        );
-  } catch (err) {
-    console.error('Failed to fetch properties:', err);
-    dbError = true;
-  }
-
-  const hasSearch = !!(checkIn && checkOut);
+export default function HomePage() {
+  const apartments = [
+    {
+      name: 'Cascade Apartment 3',
+      url: 'https://www.mtbawbawcascade3.com',
+      image: '/Cascade-Apartment3-www-mtbawbawcascade3.png',
+    },
+    {
+      name: 'Cascade Apartment 4',
+      url: 'https://www.cascadeskiapartments.com',
+      image: '/Cascade-Apartment-4-www-cascadeskiapartments.png',
+    },
+    {
+      name: 'Cascade Apartment 6',
+      url: 'https://www.cascade6.com.au',
+      image: '/Cascade-Apartment-6-www-cascade6-com.png',
+    },
+  ];
 
   return (
     <>
-      {/* ═══════════════════════ HERO ═══════════════════════════ */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-mountain-950 via-mountain-900 to-mountain-800 text-white">
-
-        {/* Dot-grid texture overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
-          }}
-        />
+      {/* ═══════════ HERO with snow mountain background ═══════════ */}
+      <section className="relative min-h-[60vh] flex flex-col items-center justify-center overflow-hidden bg-mountain-950 text-white">
+        {/* Animated snowfall */}
+        <div className="snow-layer" aria-hidden="true" />
+        <div className="snow-layer snow-layer-2" aria-hidden="true" />
 
         {/* Mountain silhouette */}
         <svg
-          className="absolute bottom-0 w-full text-mountain-800 opacity-40"
-          viewBox="0 0 1440 200"
+          className="absolute bottom-0 w-full"
+          viewBox="0 0 1440 320"
           preserveAspectRatio="none"
-          fill="currentColor"
+          fill="none"
         >
-          <path d="M0,200 L0,120 L180,40 L360,130 L540,20 L720,110 L900,30 L1080,120 L1260,50 L1440,100 L1440,200 Z" />
+          <path
+            d="M0,320 L0,220 Q80,180 160,200 Q240,120 360,160 Q420,60 540,120 Q600,40 720,100 Q800,20 900,80 Q960,30 1060,70 Q1140,10 1260,60 Q1340,90 1440,50 L1440,320 Z"
+            fill="#1a3a5c"
+            opacity="0.5"
+          />
+          <path
+            d="M0,320 L0,250 Q120,200 240,230 Q360,140 480,190 Q540,100 660,150 Q780,60 900,130 Q1020,80 1140,110 Q1260,140 1380,100 L1440,120 L1440,320 Z"
+            fill="#243b53"
+            opacity="0.7"
+          />
+          <path
+            d="M0,320 L0,270 Q100,240 200,260 Q320,220 440,250 Q520,200 640,230 Q740,190 860,220 Q960,200 1080,240 Q1200,210 1320,250 L1440,230 L1440,320 Z"
+            fill="#243b53"
+          />
+          {/* Snow caps */}
+          <path
+            d="M340,165 L360,160 L380,168 Z M520,125 L540,120 L560,128 Z M700,105 L720,100 L740,108 Z M880,85 L900,80 L920,88 Z M1040,75 L1060,70 L1080,78 Z M1240,65 L1260,60 L1280,68 Z"
+            fill="white"
+            opacity="0.9"
+          />
         </svg>
 
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-28 text-center">
+        {/* Gradient overlay for depth */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0b1a2e] via-[#102a43] to-transparent" />
 
-          {/* Location pill */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-sm text-blue-200 text-xs font-medium tracking-wide mb-7 border border-white/10">
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-            </svg>
-            Mt Baw Baw Alpine Resort · Victoria · 1,340 m elevation
-          </div>
+        {/* Stars */}
+        <div className="absolute inset-0 opacity-30" style={{
+          backgroundImage: 'radial-gradient(1px 1px at 10% 20%, white 50%, transparent 100%), radial-gradient(1px 1px at 30% 60%, white 50%, transparent 100%), radial-gradient(1px 1px at 50% 10%, white 50%, transparent 100%), radial-gradient(1px 1px at 70% 40%, white 50%, transparent 100%), radial-gradient(1px 1px at 90% 70%, white 50%, transparent 100%), radial-gradient(1.5px 1.5px at 15% 80%, white 50%, transparent 100%), radial-gradient(1.5px 1.5px at 85% 15%, white 50%, transparent 100%), radial-gradient(1px 1px at 40% 90%, white 50%, transparent 100%), radial-gradient(1px 1px at 60% 30%, white 50%, transparent 100%), radial-gradient(1px 1px at 25% 45%, white 50%, transparent 100%)',
+        }} />
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight mb-4">
-            Your Perfect<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-sky-200">
-              Alpine Escape
-            </span>
+        <div className="relative z-10 text-center px-4 pb-24 pt-16">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight mb-4 drop-shadow-lg">
+            Cascade Apartments
           </h1>
-
-          <p className="text-blue-100/80 text-lg max-w-xl mx-auto mb-10">
-            Premium apartments at Victoria&apos;s finest ski resort. Book direct and skip the platform fees.
+          <p className="text-xl sm:text-2xl text-blue-200/90 font-light mb-2">
+            Mt Baw Baw Alpine Resort
           </p>
-
-          {/* Search card */}
-          <SearchForm initialValues={{ checkIn, checkOut, guests }} />
-
-          {/* Stats */}
-          <div className="mt-10 flex flex-wrap justify-center gap-8">
-            {[
-              { value: `${properties.length}`, label: 'Properties' },
-              { value: '1,340 m', label: 'Above Sea Level' },
-              { value: '2.5 hrs', label: 'From Melbourne' },
-              { value: 'Direct', label: 'Best Rates' },
-            ].map(({ value, label }, i) => (
-              <div key={label} className="flex items-center gap-8">
-                {i > 0 && <div className="h-8 w-px bg-white/15 hidden sm:block" />}
-                <div className="text-center">
-                  <div className="text-xl font-bold text-white">{value}</div>
-                  <div className="text-xs text-blue-300/80 mt-0.5">{label}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
+          <p className="text-blue-300/70 text-sm sm:text-base max-w-lg mx-auto">
+            Three premium ski apartments nestled in Victoria&apos;s alpine village.
+            Your mountain escape awaits.
+          </p>
         </div>
       </section>
 
-      {/* ════════════════ LISTINGS SECTION ══════════════════════ */}
-      <section className="bg-slate-50 py-10">
+      {/* ═══════════ APARTMENT CARDS ═══════════ */}
+      <section className="relative bg-mountain-900 py-16 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-          {/* Results header */}
-          <div className="flex items-end justify-between mb-6 border-b border-slate-200 pb-5">
-            <div>
-              {hasSearch ? (
-                <>
-                  <h2 className="text-xl font-bold text-slate-900">
-                    {properties.length} {properties.length === 1 ? 'property' : 'properties'} available
-                  </h2>
-                  <p className="text-slate-500 text-sm mt-0.5">
-                    {fmtDate(checkIn!)} – {fmtDate(checkOut!)}
-                    {guests && ` · ${guests} ${guests === 1 ? 'guest' : 'guests'}`}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <h2 className="text-xl font-bold text-slate-900">All Alpine Properties</h2>
-                  <p className="text-slate-500 text-sm mt-0.5">
-                    {properties.length} {properties.length === 1 ? 'apartment' : 'apartments'} at Mt Baw Baw Resort
-                  </p>
-                </>
-              )}
-            </div>
-
-            {/* Sort (decorative — real sorting would need client state) */}
-            <div className="hidden sm:flex items-center gap-2 text-sm text-slate-500">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
-              </svg>
-              Sort: Recommended
-            </div>
-          </div>
-
-          {dbError ? (
-            <div className="py-20 text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-50 mb-5">
-                <svg className="w-8 h-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                </svg>
-              </div>
-              <h3 className="text-base font-semibold text-slate-800 mb-1">Properties temporarily unavailable</h3>
-              <p className="text-sm text-slate-500 max-w-sm mx-auto">
-                We&apos;re having trouble loading properties right now. Please try again in a few moments.
-              </p>
-            </div>
-          ) : (
-            <PropertyGrid properties={properties} searchParams={{ checkIn, checkOut, guests }} />
-          )}
-        </div>
-      </section>
-
-      {/* ══════════════ WHY MT BAW BAW ═══════════════════════════ */}
-      {!hasSearch && (
-        <section id="why" className="bg-white py-16 border-t border-slate-100">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-slate-900">Why Mt Baw Baw?</h2>
-              <p className="text-slate-500 mt-2 text-sm">Victoria&apos;s best kept alpine secret</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                {
-                  bg: 'bg-blue-50',
-                  icon: (
-                    <svg className="w-7 h-7 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                    </svg>
-                  ),
-                  title: 'Ski-In, Ski-Out Access',
-                  body: 'Apartments positioned right on the mountain. Step out the door and onto the slopes in minutes.',
-                },
-                {
-                  bg: 'bg-green-50',
-                  icon: (
-                    <svg className="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                  ),
-                  title: 'Book Direct & Save',
-                  body: 'No third-party platform fees. Secure checkout direct with the property, at the best available rate.',
-                },
-                {
-                  bg: 'bg-orange-50',
-                  icon: (
-                    <svg className="w-7 h-7 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                    </svg>
-                  ),
-                  title: 'Premium Quality',
-                  body: 'Every property is handpicked, inspected and maintained to resort standard, year round.',
-                },
-              ].map(({ bg, icon, title, body }) => (
-                <div key={title} className={`${bg} rounded-2xl p-8 flex flex-col items-start gap-4`}>
-                  <div className="rounded-xl p-3 bg-white shadow-sm">{icon}</div>
-                  <div>
-                    <h3 className="text-base font-semibold text-slate-900 mb-1">{title}</h3>
-                    <p className="text-slate-500 text-sm leading-relaxed">{body}</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {apartments.map((apt) => (
+              <a
+                key={apt.name}
+                href={apt.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group block"
+              >
+                <div className="rounded-2xl overflow-hidden bg-mountain-800 shadow-2xl shadow-black/40 border border-white/10 transition-transform duration-300 group-hover:scale-[1.02]">
+                  {/* Screenshot container with scroll-on-hover */}
+                  <div className="relative h-72 sm:h-80 overflow-hidden">
+                    <Image
+                      src={apt.image}
+                      alt={`Screenshot of ${apt.name} website`}
+                      width={800}
+                      height={2000}
+                      className="absolute top-0 left-0 w-full object-cover object-top screenshot-scroll"
+                    />
+                    {/* Fade overlay at bottom */}
+                    <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-mountain-800 to-transparent" />
+                  </div>
+                  {/* Label */}
+                  <div className="p-5">
+                    <h3 className="text-lg font-bold text-white mb-1">{apt.name}</h3>
+                    <span className="inline-flex items-center gap-1.5 text-sm text-blue-300 group-hover:text-blue-200 transition-colors">
+                      {apt.url.replace('https://', '')}
+                      <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            {/* Resort info strip */}
-            <div className="mt-12 rounded-2xl bg-gradient-to-r from-mountain-900 to-mountain-800 text-white p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-              <div>
-                <h3 className="text-lg font-bold mb-1">Year-Round Alpine Destination</h3>
-                <p className="text-blue-200/80 text-sm">
-                  Winter skiing · Summer hiking · Cross-country trails · Family weekends
-                </p>
-              </div>
-              <Link
-                href="/"
-                className="flex-shrink-0 bg-orange-500 hover:bg-orange-400 text-white font-semibold px-6 py-3 rounded-xl transition-colors text-sm shadow-lg shadow-orange-500/25"
-              >
-                Browse Properties →
-              </Link>
-            </div>
+              </a>
+            ))}
           </div>
-        </section>
-      )}
+        </div>
+      </section>
     </>
   );
 }
