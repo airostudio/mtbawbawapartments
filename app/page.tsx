@@ -29,52 +29,37 @@ export default function HomePage() {
       <section style={{
         position: 'relative',
         overflow: 'hidden',
-        background: 'linear-gradient(180deg, #050d1a 0%, #0a1929 40%, #102a43 100%)',
+        minHeight: '65vh',
         paddingTop: '5rem',
         paddingBottom: '8rem',
         textAlign: 'center',
         color: 'white',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}>
+
+        {/* Unsplash hero photo — snow-capped mountain at sunrise */}
+        <Image
+          src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1920&q=80"
+          alt="Snow-capped mountains at Mt Baw Baw Alpine Resort"
+          fill
+          priority
+          unoptimized
+          style={{ objectFit: 'cover', objectPosition: 'center 60%' }}
+        />
+
+        {/* Dark overlay for text legibility */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(180deg, rgba(5,13,26,0.55) 0%, rgba(10,25,41,0.45) 50%, rgba(16,42,67,0.80) 100%)',
+        }} />
 
         {/* Snowfall layers */}
         <div className="snow-layer" aria-hidden="true" />
         <div className="snow-layer snow-layer-2" aria-hidden="true" />
-
-        {/* Mountain silhouette */}
-        <svg
-          style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', display: 'block' }}
-          viewBox="0 0 1440 220"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          {/* Far mountains */}
-          <path
-            d="M0,220 L0,160 L120,90 L240,140 L380,60 L520,130 L620,40 L740,110 L860,35 L980,100 L1080,45 L1200,95 L1310,50 L1440,80 L1440,220 Z"
-            fill="#122a45"
-          />
-          {/* Snow on far peaks */}
-          <path d="M380,60 L395,52 L410,60 Z" fill="white" opacity="0.8" />
-          <path d="M620,40 L635,32 L650,40 Z" fill="white" opacity="0.8" />
-          <path d="M860,35 L875,27 L890,35 Z" fill="white" opacity="0.9" />
-          <path d="M1080,45 L1095,37 L1110,45 Z" fill="white" opacity="0.8" />
-          <path d="M1310,50 L1325,42 L1340,50 Z" fill="white" opacity="0.7" />
-
-          {/* Near mountains */}
-          <path
-            d="M0,220 L0,180 L100,130 L200,170 L320,105 L440,160 L560,90 L680,150 L800,115 L920,160 L1020,100 L1140,155 L1260,120 L1380,160 L1440,140 L1440,220 Z"
-            fill="#162f4a"
-          />
-          {/* Snow on near peaks */}
-          <path d="M320,105 L333,97 L346,105 Z" fill="white" opacity="0.85" />
-          <path d="M560,90 L573,82 L586,90 Z" fill="white" opacity="0.9" />
-          <path d="M1020,100 L1033,92 L1046,100 Z" fill="white" opacity="0.85" />
-
-          {/* Foreground ridge */}
-          <path
-            d="M0,220 L0,200 L180,185 L360,195 L540,178 L720,192 L900,180 L1080,194 L1260,182 L1440,190 L1440,220 Z"
-            fill="#1a3a5c"
-          />
-        </svg>
 
         {/* Hero content */}
         <div style={{ position: 'relative', zIndex: 10, padding: '0 1rem' }}>
