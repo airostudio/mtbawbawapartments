@@ -1,5 +1,8 @@
 import Image from 'next/image';
 
+// Revalidate the hero photo once per day
+export const revalidate = 86400;
+
 const apartments = [
   {
     name: 'Cascade Apartment 3',
@@ -21,7 +24,40 @@ const apartments = [
   },
 ];
 
-export default function HomePage() {
+interface UnsplashPhoto {
+  urls: { regular: string; full: string };
+  alt_description: string | null;
+  user: { name: string; links: { html: string } };
+  links: { html: string };
+}
+
+async function getHeroPhoto(): Promise<UnsplashPhoto | null> {
+  const accessKey = process.env.UNSPLASH_ACCESS_KEY;
+  if (!accessKey) return null;
+
+  try {
+    const res = await fetch(
+      'https://api.unsplash.com/photos/random?query=snowfield+alpine+ski+mountain&orientation=landscape&content_filter=high',
+      {
+        headers: { Authorization: `Client-ID ${accessKey}` },
+        next: { revalidate: 86400 },
+      },
+    );
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export default async function HomePage() {
+  const photo = await getHeroPhoto();
+
+  const heroSrc = photo?.urls.regular
+    ?? 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1920&q=80';
+
+  const heroAlt = photo?.alt_description ?? 'Snow-capped mountains at Mt Baw Baw Alpine Resort';
+
   return (
     <div style={{ background: '#0a1929', minHeight: '100vh' }}>
 
@@ -40,17 +76,17 @@ export default function HomePage() {
         justifyContent: 'center',
       }}>
 
-        {/* Unsplash hero photo — snow-capped mountain at sunrise */}
+        {/* Unsplash hero photo */}
         <Image
-          src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1920&q=80"
-          alt="Snow-capped mountains at Mt Baw Baw Alpine Resort"
+          src={heroSrc}
+          alt={heroAlt}
           fill
           priority
           unoptimized
           style={{ objectFit: 'cover', objectPosition: 'center 60%' }}
         />
 
-        {/* Dark overlay for text legibility */}
+        {/* Dark gradient overlay */}
         <div style={{
           position: 'absolute',
           inset: 0,
@@ -114,6 +150,36 @@ export default function HomePage() {
             just 2.5 hours from Melbourne.
           </p>
         </div>
+
+        {/* Unsplash attribution (required by Unsplash guidelines) */}
+        {photo && (
+          <a
+            href={`${photo.links.html}?utm_source=cascade_apartments&utm_medium=referral`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              position: 'absolute',
+              bottom: '0.75rem',
+              right: '0.75rem',
+              zIndex: 10,
+              fontSize: '0.65rem',
+              color: 'rgba(255,255,255,0.45)',
+              textDecoration: 'none',
+              transition: 'color 0.2s',
+            }}
+          >
+            Photo by{' '}
+            <a
+              href={`${photo.user.links.html}?utm_source=cascade_apartments&utm_medium=referral`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'rgba(255,255,255,0.55)', textDecoration: 'underline' }}
+            >
+              {photo.user.name}
+            </a>
+            {' '}on Unsplash
+          </a>
+        )}
       </section>
 
       {/* ══════════════════ APARTMENT CARDS ══════════════════════ */}
@@ -155,16 +221,13 @@ export default function HomePage() {
                 className="group"
                 style={{ display: 'block', textDecoration: 'none' }}
               >
-                <div style={{
+                <div className="apt-card" style={{
                   borderRadius: '1rem',
                   overflow: 'hidden',
                   background: '#1e3a52',
                   boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
                   border: '1px solid rgba(255,255,255,0.08)',
-                  transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-                }}
-                  className="apt-card"
-                >
+                }}>
                   {/* Screenshot viewport */}
                   <div style={{
                     height: '320px',
