@@ -100,6 +100,7 @@ export default function HomePage() {
                       alt={`Screenshot of ${apt.name} website`}
                       width={800}
                       height={2000}
+                      unoptimized
                       className="absolute top-0 left-0 w-full object-cover object-top screenshot-scroll"
                     />
                     {/* Fade overlay at bottom */}
