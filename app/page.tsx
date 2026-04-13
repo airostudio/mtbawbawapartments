@@ -18,8 +18,8 @@ const apartments = [
   },
   {
     name: 'Cascade Apartment 6',
-    url: 'https://www.cascade6.com.au',
-    display: 'www.cascade6.com.au',
+    url: 'https://www.cascade6.online',
+    display: 'www.cascade6.online',
     image: '/Cascade-Apartment-6-www-cascade6-com.png',
   },
 ];
