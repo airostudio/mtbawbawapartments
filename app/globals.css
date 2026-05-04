@@ -39,6 +39,15 @@ body {
   box-shadow: 0 32px 60px rgba(0,0,0,0.6);
 }
 
+/* ─── Contact form inputs ────────────────────────────────── */
+.contact-input:focus {
+  border-color: rgba(59,130,246,0.5);
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+}
+.contact-input::placeholder {
+  color: rgba(147,197,253,0.3);
+}
+
 /* ─── CTA button hover ────────────────────────────────────── */
 .cta-button {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
