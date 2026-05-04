@@ -292,6 +292,143 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ══════════════════ GROUP BOOKING CTA ═══════════════════ */}
+      <section style={{
+        background: 'linear-gradient(180deg, #102a43 0%, #0a1929 100%)',
+        padding: '5rem 1rem',
+        textAlign: 'center',
+      }}>
+        <div style={{ maxWidth: '720px', margin: '0 auto' }}>
+
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.375rem 1rem',
+            borderRadius: '9999px',
+            background: 'rgba(59,130,246,0.15)',
+            border: '1px solid rgba(59,130,246,0.25)',
+            color: '#93c5fd',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            letterSpacing: '0.05em',
+            marginBottom: '1.5rem',
+            textTransform: 'uppercase',
+          }}>
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-1a5.97 5.97 0 00-.94-3.22A4.002 4.002 0 0120 17v1h-4zM4 17v1H0v-1a4.002 4.002 0 014.94-3.22A5.97 5.97 0 004 17z" />
+            </svg>
+            Group Bookings
+          </div>
+
+          <h2 style={{
+            fontSize: 'clamp(1.75rem, 4vw, 2.5rem)',
+            fontWeight: 800,
+            color: 'white',
+            lineHeight: 1.2,
+            marginBottom: '1rem',
+            letterSpacing: '-0.02em',
+          }}>
+            Book All Three Apartments
+          </h2>
+
+          <p style={{
+            fontSize: '1.125rem',
+            color: '#93c5fd',
+            fontWeight: 500,
+            marginBottom: '0.5rem',
+          }}>
+            Up to 21 guests across 3 premium ski apartments
+          </p>
+
+          <p style={{
+            fontSize: '0.9375rem',
+            color: 'rgba(147,197,253,0.6)',
+            lineHeight: 1.7,
+            marginBottom: '2.5rem',
+            maxWidth: '560px',
+            margin: '0 auto 2.5rem',
+          }}>
+            Perfect for family reunions, corporate retreats, or friends hitting the slopes together.
+            Lock in all three Cascade Apartments and enjoy Mt&nbsp;Baw&nbsp;Baw as a group.
+          </p>
+
+          {/* Capacity badges */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '1.5rem',
+            flexWrap: 'wrap',
+            marginBottom: '2.5rem',
+          }}>
+            {[
+              { label: 'Apartments', value: '3' },
+              { label: 'Max Guests', value: '21' },
+              { label: 'One Location', value: 'Mt Baw Baw' },
+            ].map((stat) => (
+              <div key={stat.label} style={{
+                padding: '1rem 1.5rem',
+                borderRadius: '0.75rem',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                minWidth: '140px',
+              }}>
+                <div style={{
+                  fontSize: '1.5rem',
+                  fontWeight: 800,
+                  color: 'white',
+                  marginBottom: '0.25rem',
+                }}>
+                  {stat.value}
+                </div>
+                <div style={{
+                  fontSize: '0.75rem',
+                  color: 'rgba(147,197,253,0.6)',
+                  fontWeight: 500,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}>
+                  {stat.label}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA Button */}
+          <a
+            href="mailto:admin@mtbawbawapartments.com?subject=Group%20Booking%20Enquiry%20–%20Cascade%20Apartments&body=Hi%2C%0A%0AI'd%20like%20to%20enquire%20about%20booking%20all%20three%20Cascade%20Apartments%20for%20a%20group.%0A%0ANumber%20of%20guests%3A%20%0APreferred%20dates%3A%20%0A%0AThanks!"
+            className="cta-button"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '1rem 2.5rem',
+              borderRadius: '9999px',
+              background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+              color: 'white',
+              fontSize: '1rem',
+              fontWeight: 700,
+              textDecoration: 'none',
+              boxShadow: '0 4px 24px rgba(37,99,235,0.4)',
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+            }}
+          >
+            Enquire About Group Booking
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </a>
+
+          <p style={{
+            fontSize: '0.75rem',
+            color: 'rgba(147,197,253,0.4)',
+            marginTop: '1rem',
+          }}>
+            We&apos;ll respond within 24 hours
+          </p>
+        </div>
+      </section>
+
     </div>
   );
 }

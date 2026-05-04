@@ -39,6 +39,15 @@ body {
   box-shadow: 0 32px 60px rgba(0,0,0,0.6);
 }
 
+/* ─── CTA button hover ────────────────────────────────────── */
+.cta-button {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.cta-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(37,99,235,0.55);
+}
+
 /* ─── Snowfall animation ─────────────────────────────────────── */
 .snow-layer {
   position: absolute;
