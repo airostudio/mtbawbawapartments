@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState } from 'react';
 
 const enquiryTypes = [
   'General Enquiry',
@@ -11,8 +11,9 @@ const enquiryTypes = [
   'Other',
 ];
 
+const RECIPIENT = 'hello@mtbawbawcascade3.com';
+
 export default function ContactForm() {
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -29,60 +30,25 @@ export default function ContactForm() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  async function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setStatus('sending');
 
-    try {
-      const res = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      if (!res.ok) throw new Error('Failed');
-      setStatus('sent');
-      setForm({ name: '', email: '', phone: '', enquiryType: 'General Enquiry', guests: '', dates: '', message: '' });
-    } catch {
-      setStatus('error');
-    }
-  }
+    const subject = isGroupBooking
+      ? `Group Booking Enquiry (${form.guests || '?'} guests) – ${form.name}`
+      : `${form.enquiryType} – ${form.name}`;
 
-  if (status === 'sent') {
-    return (
-      <div style={{
-        textAlign: 'center',
-        padding: '3rem 1.5rem',
-        background: 'rgba(16,185,129,0.1)',
-        border: '1px solid rgba(16,185,129,0.25)',
-        borderRadius: '1rem',
-      }}>
-        <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="#10b981" strokeWidth="2" style={{ margin: '0 auto 1rem' }}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white', marginBottom: '0.5rem' }}>
-          Message Sent
-        </h3>
-        <p style={{ color: 'rgba(147,197,253,0.7)', fontSize: '0.9375rem' }}>
-          Thanks {form.name || 'for your enquiry'}! We&apos;ll get back to you within 24 hours.
-        </p>
-        <button
-          onClick={() => setStatus('idle')}
-          style={{
-            marginTop: '1.5rem',
-            padding: '0.625rem 1.5rem',
-            borderRadius: '9999px',
-            background: 'rgba(255,255,255,0.1)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            color: 'white',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
-        >
-          Send Another Message
-        </button>
-      </div>
-    );
+    const lines = [
+      `Name: ${form.name}`,
+      form.phone ? `Phone: ${form.phone}` : '',
+      `Enquiry Type: ${form.enquiryType}`,
+      isGroupBooking && form.guests ? `Number of Guests: ${form.guests}` : '',
+      isGroupBooking && form.dates ? `Preferred Dates: ${form.dates}` : '',
+      '',
+      form.message,
+    ].filter(Boolean).join('\n');
+
+    const mailto = `mailto:${RECIPIENT}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines)}`;
+    window.location.href = mailto;
   }
 
   const inputStyle = {
@@ -125,9 +91,8 @@ export default function ContactForm() {
 
         {/* Email */}
         <div>
-          <label style={labelStyle}>Email *</label>
+          <label style={labelStyle}>Email</label>
           <input
-            required
             type="email"
             value={form.email}
             onChange={(e) => update('email', e.target.value)}
@@ -222,7 +187,6 @@ export default function ContactForm() {
       <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
         <button
           type="submit"
-          disabled={status === 'sending'}
           className="cta-button"
           style={{
             display: 'inline-flex',
@@ -230,34 +194,28 @@ export default function ContactForm() {
             gap: '0.5rem',
             padding: '0.875rem 2.25rem',
             borderRadius: '9999px',
-            background: status === 'sending'
-              ? 'rgba(59,130,246,0.4)'
-              : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
             color: 'white',
             fontSize: '1rem',
             fontWeight: 700,
             border: 'none',
-            cursor: status === 'sending' ? 'wait' : 'pointer',
+            cursor: 'pointer',
             boxShadow: '0 4px 24px rgba(37,99,235,0.4)',
           }}
         >
-          {status === 'sending' ? 'Sending...' : 'Send Message'}
-          {status !== 'sending' && (
-            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-          )}
+          Send via Email
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
         </button>
-      </div>
-
-      {status === 'error' && (
-        <p style={{ textAlign: 'center', color: '#f87171', fontSize: '0.875rem', marginTop: '1rem' }}>
-          Something went wrong. Please try again or email us directly at{' '}
-          <a href="mailto:hello@mtbawbawcascade3.com" style={{ color: '#93c5fd', textDecoration: 'underline' }}>
-            hello@mtbawbawcascade3.com
-          </a>
+        <p style={{
+          fontSize: '0.75rem',
+          color: 'rgba(147,197,253,0.4)',
+          marginTop: '0.75rem',
+        }}>
+          Opens your email client to send to {RECIPIENT}
         </p>
-      )}
+      </div>
     </form>
   );
 }
